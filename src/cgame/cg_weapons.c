@@ -6264,10 +6264,8 @@ void CG_Bullet(vec3_t end, int sourceEntityNum, qboolean flesh, int fleshEntityN
 
 				cg.bulletTrace = qtrue;
 				CG_Trace(&trace, start, NULL, NULL, end, 0, MASK_SHOT);
-				cg.bulletTrace = qfalse;
 
 				// water check
-				cg.bulletTrace = qtrue;
 				CG_Trace(&trace2, start, NULL, NULL, end, 0, MASK_WATER | MASK_SHOT);
 				cg.bulletTrace = qfalse;
 
