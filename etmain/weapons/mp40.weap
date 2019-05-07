@@ -42,6 +42,47 @@ weaponDef
 		ejectBrassFunc		"MachineGunEjectBrass"				// supports "MachineGunEjectBrass" and "PanzerFaustEjectBrass"
 		ejectBrassOffset    16 -4 24
 		
+                impactFunction    "BulletImpact" // supports "MeleeImpact", "BulletImpact", "SmallExplosionImpact", "BigExplosionImpact", "MapMortarImpact" and "DynamiteExplosionImpact"
+                impactSound {                   // each surface supports up to 5 hits sounds. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
+                
+                    default "sound/weapons/impact/stone0.wav"
+                    default "sound/weapons/impact/stone1.wav"
+                    default "sound/weapons/impact/stone2.wav"
+                    default "sound/weapons/impact/stone3.wav"
+                    default "sound/weapons/impact/stone4.wav"
+                    wood    "sound/weapons/impact/wood0.wav"
+                    wood    "sound/weapons/impact/wood1.wav"
+                    wood    "sound/weapons/impact/wood2.wav"
+                    wood    "sound/weapons/impact/wood3.wav"
+                    wood    "sound/weapons/impact/wood4.wav"
+                    metal   "sound/weapons/impact/metal0.wav"
+                    metal   "sound/weapons/impact/metal1.wav"
+                    metal   "sound/weapons/impact/metal2.wav"
+                    metal   "sound/weapons/impact/metal3.wav"
+                    metal   "sound/weapons/impact/metal4.wav"
+                    roof    "sound/weapons/impact/metal0.wav"
+                    roof    "sound/weapons/impact/metal1.wav"
+                    roof    "sound/weapons/impact/metal2.wav"
+                    roof    "sound/weapons/impact/metal3.wav"
+                    roof    "sound/weapons/impact/metal4.wav"
+                    glass   "sound/weapons/impact/glass0.wav"
+                    glass   "sound/weapons/impact/glass1.wav"
+                    glass   "sound/weapons/impact/glass2.wav"
+                    glass   "sound/weapons/impact/glass3.wav"
+                    glass   "sound/weapons/impact/glass4.wav"
+                    water   "sound/weapons/impact/water0.wav"
+                    water   "sound/weapons/impact/water1.wav"
+                    water   "sound/weapons/impact/water2.wav"
+                    water   "sound/weapons/impact/water3.wav"
+                    water   "sound/weapons/impact/water4.wav"
+                }
+                impactMark {                    // each surface supports up to 1 marks shader. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
+                    default "gfx/damage/bullet_mrk"
+                    wood    "gfx/damage/metal_mrk"
+                    metal   "gfx/damage/wood_mrk"
+                    glass   "gfx/damage/glass_mrk" 
+                }
+
 		//modModel 1		""
 		
 		firstPerson {

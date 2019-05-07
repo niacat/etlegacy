@@ -1383,7 +1383,7 @@ void CG_Effect(centity_t *cent, vec3_t origin, vec3_t dir)
 
 	if (cent->currentState.eventParm & 1)      // fire
 	{
-		CG_MissileHitWall(WP_DYNAMITE, PS_FX_NONE, origin, dir, 0);
+		CG_MissileHitWall(WP_DYNAMITE, PS_FX_NONE, origin, dir, 0, qfalse);
 		return;
 	}
 
@@ -2265,7 +2265,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 		vec3_t dir;
 
 		ByteToDir(es->eventParm, dir);
-		CG_MissileHitWall(es->weapon, PS_FX_NONE, position, dir, 0);         // modified to send missilehitwall surface parameters
+		CG_MissileHitWall(es->weapon, PS_FX_NONE, position, dir, 0, qfalse);
 		if (CHECKBITWISE(GetWeaponTableData(es->weapon)->type, WEAPON_TYPE_MORTAR | WEAPON_TYPE_SET))
 		{
 			if (!es->legsAnim)
@@ -2286,11 +2286,11 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 		ByteToDir(es->eventParm, dir);
 		if (es->weapon == WP_ARTY || es->weapon == WP_AIRSTRIKE || es->weapon == WP_SMOKE_MARKER)
 		{
-			CG_MissileHitWall(es->weapon, PS_FX_NONE, position, dir, 0);           // modified to send missilehitwall surface parameters
+			CG_MissileHitWall(es->weapon, PS_FX_NONE, position, dir, 0, qfalse);
 		}
 		else
 		{
-			CG_MissileHitWall(VERYBIGEXPLOSION, PS_FX_NONE, position, dir, 0);     // modified to send missilehitwall surface parameters
+			CG_MissileHitWall(VERYBIGEXPLOSION, PS_FX_NONE, position, dir, 0, qfalse);
 		}
 	}
 	break;
@@ -2881,7 +2881,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 		default:     // shouldn't happen
 			break;
 		}
-	break;
+		break;
 	case EV_FLAG_INDICATOR:
 		cg.flagIndicator   = es->eventParm;
 		cg.redFlagCounter  = es->otherEntityNum;

@@ -43,6 +43,19 @@ weaponDef
 		
 		//ejectBrassFunc	""									// supports "MachineGunEjectBrass" and "PanzerFaustEjectBrass"
 		//ejectBrassOffset  0 0 0
+                
+                impactFunction    "MeleeImpact" // supports "MeleeImpact", "BulletImpact", "SmallExplosionImpact", "BigExplosionImpact", "MapMortarImpact" and "DynamiteExplosionImpact"
+                impactSound {                   // each surface supports up to 5 hits sounds. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
+                
+                    default "sound/weapons/knife/knife_hitwall.wav" 
+                    flesh   "sound/weapons/knife/knife_hit1.wav" 
+                    flesh   "sound/weapons/knife/knife_hit2.wav"
+                    flesh   "sound/weapons/knife/knife_hit2.wav"
+                    flash   "sound/weapons/knife/knife_hit3.wav"
+                }
+                impactMark {                    // each surface supports up to 1 marks shader. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
+                    default "gfx/damage/bullet_mrk"
+                }
 		
 		//modModel 1		""
 		

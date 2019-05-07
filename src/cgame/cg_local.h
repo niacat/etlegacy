@@ -695,6 +695,41 @@ typedef enum
 } modelViewType_t;
 
 /**
+ * @enum impactSurface_s
+ * @typedef impactSurface_t
+ * @brief index used to identify sound to play surface hit
+ * wood, metal, roof, stone, glass, water, snow, flesh
+ */
+typedef enum impactSurface_s
+{
+	W_IMPACT_DEFAULT = 0,  ///< default sound in case of no sound for hit surface sound
+	W_IMPACT_FAR,          ///< used sound when player is far from the impact origin
+        W_IMPACT_METAL,
+	W_IMPACT_WOOD,
+        W_IMPACT_GRASS,
+	W_IMPACT_GRAVEL,
+	W_IMPACT_GLASS,
+	W_IMPACT_SNOW,
+        W_IMPACT_ROOF,
+	W_IMPACT_WATER,
+	W_IMPACT_FLESH,
+	W_MAX_IMPACTS
+
+} impactSurface_t;
+
+/**
+ * @struct impactTable_s
+ * @typedef impactTable_t
+ * @brief Impact Table
+ */
+typedef struct impactTable_s
+{
+	int surfaceType;
+	const char *surfaceName;
+
+} impactTable_t;
+
+/**
  * @struct partModel_s
  * @typedef partModel_t
  * @brief
@@ -716,6 +751,8 @@ typedef struct weaponModel_s
 	qhandle_t model;
 	qhandle_t skin[3];              ///< 0: neutral, 1: axis, 2: allied
 } weaponModel_t;
+
+#define MAX_IMPACT_SOUNDS   5
 
 /**
  * @struct weaponInfo_s
@@ -775,6 +812,10 @@ typedef struct weaponInfo_s
 
 	sfxHandle_t switchSound;
 	sfxHandle_t noAmmoSound;
+
+	sfxHandle_t impactMark[W_MAX_IMPACTS];
+	sfxHandle_t impactSound[W_MAX_IMPACTS][MAX_IMPACT_SOUNDS];
+	void (*impactFunc)(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
 } weaponInfo_t;
 
 #define MAX_VIEWDAMAGE  8
@@ -1313,8 +1354,6 @@ typedef struct
 } cg_t;
 
 #define MAX_LOCKER_DEBRIS   5
-
-#define MAX_IMPACT_SOUNDS   5
 
 /**
  * @struct cgMedia_t
@@ -2793,7 +2832,7 @@ void CG_RegisterItemVisuals(int itemNum);
 
 void CG_FireWeapon(centity_t *cent);
 
-void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags);     // modified to send missilehitwall surface parameters
+void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh);     // modified to send missilehitwall surface parameters
 
 void CG_MissileHitWallSmall(vec3_t origin, vec3_t dir);
 void CG_DrawTracer(const vec3_t start, const vec3_t finish);
@@ -3007,7 +3046,7 @@ void CG_AddToNotify(const char *str);
 const char *CG_LocalizeServerCommand(const char *buf);
 void CG_wstatsParse_cmd(void);
 
-void CG_parseWeaponStats_cmd(void(txt_dump) (const char *));
+void CG_parseWeaponStats_cmd(void (txt_dump) (const char *));
 //void CG_parseBestShotsStats_cmd(qboolean doTop, void(txt_dump) (const char *));
 //void CG_parseTopShotsStats_cmd(qboolean doTop, void(txt_dump) (const char *));
 //void CG_scores_cmd(void);
