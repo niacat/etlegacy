@@ -38,6 +38,12 @@ weaponDef
 		//ejectBrassOffset  0 0 0
 		
 		//modModel 1		""
+                
+                impactFunction    "SmallExplosionImpact"  // supports "MeleeImpact", "BulletImpact", "SmallExplosionImpact", "BigExplosionImpact", "MapMortarImpact" and "DynamiteExplosionImpact"
+                
+                impactMark {                    // each surface supports up to 1 marks shader. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
+                    default "gfx/damage/burn_med_mrk"
+                }
 		
 		firstPerson {
 			model		"models/multiplayer/mortar/v_mortar.md3"

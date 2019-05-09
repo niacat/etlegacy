@@ -43,6 +43,17 @@ weaponDef
 		//ejectBrassOffset  0 0 0
 		
 		//modModel 1		""
+                
+                impactFunction    "SmallExplosionImpact"  // supports "MeleeImpact", "BulletImpact", "SmallExplosionImpact", "BigExplosionImpact", "MapMortarImpact" and "DynamiteExplosionImpact"
+                impactSound {                           // each surface supports up to 5 hits sounds. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
+                
+                    default "sound/weapons/grenade/gren_expl.wav"
+                    far     "sound/weapons/grenade/gren_expl_far.wav"
+                    water   "sound/weapons/grenade/gren_expl_water.wav"
+                }
+                impactMark {                    // each surface supports up to 1 marks shader. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
+                    default "gfx/damage/burn_med_mrk"
+                }
 		
 		firstPerson {
 			model			"models/weapons2/grenade/v_pineapple.md3"

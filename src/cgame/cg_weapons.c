@@ -1243,11 +1243,6 @@ static qboolean CG_RW_ParseImpactSound(int handle, weaponInfo_t *weaponInfo)
 		{
 			if (!Q_stricmp(token.string, impactSurfaceTable[impactSurface].surfaceName))
 			{
-				if (!PC_String_ParseNoAlloc(handle, filename, sizeof(filename)))
-				{
-					return CG_RW_ParseError(handle, "expected impactSound filename");
-				}
-
 				break;
 			}
 		}
@@ -1257,18 +1252,32 @@ static qboolean CG_RW_ParseImpactSound(int handle, weaponInfo_t *weaponInfo)
 			return CG_RW_ParseError(handle, "unknown token '%s'", token.string);
 		}
 
-		for (i = 0; i < MAX_IMPACT_SOUNDS; i++)
+		if (!trap_PC_ReadToken(handle, &token))
 		{
-			if (!weaponInfo->impactSound[impactSurface][i])
-			{
-				weaponInfo->impactSound[impactSurface][i] = trap_S_RegisterSound(filename, qfalse);
-				break;
-			}
+			return CG_RW_ParseError(handle, "expected impactSound filename or maxImpactSurface");
 		}
 
-		if (i == 4)
+		// get the number of files sound to register
+		if (token.type == TT_NUMBER)
 		{
-			CG_Printf(S_COLOR_YELLOW "WARNING: only up to 4 flashSounds supported per weapon\n");
+			if (token.intvalue > MAX_IMPACT_SOUNDS)
+			{
+				CG_Printf(S_COLOR_YELLOW "WARNING: only up to 5 impactSounds supported per weapon\n");
+			}
+
+			if (!PC_String_ParseNoAlloc(handle, filename, sizeof(filename)))
+			{
+				return CG_RW_ParseError(handle, "expected impactSound filename");
+			}
+
+			for (i = 0; i < token.intvalue && i < MAX_IMPACT_SOUNDS ; i++)
+			{
+				weaponInfo->impactSound[impactSurface][i] = trap_S_RegisterSound(va("%s%i", filename, i + 1), qfalse);
+			}
+		}
+		else    // assume only one file sound must be register
+		{
+			weaponInfo->impactSound[impactSurface][0] = trap_S_RegisterSound(token.string, qfalse);
 		}
 	}
 
@@ -1328,8 +1337,14 @@ static qboolean CG_RW_ParseImpactMark(int handle, weaponInfo_t *weaponInfo)
 	return qtrue;
 }
 
-void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
-void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
+typedef struct hitImpact_s hitImpact_t;
+
+void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
+void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
+void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
+void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
+void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
+void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
 
 /**
  * @brief CG_RW_ParseClient
@@ -1732,19 +1747,19 @@ static qboolean CG_RW_ParseClient(int handle, weaponInfo_t *weaponInfo)
 			}
 			else if (!Q_stricmp(filename, "SmallExplosionImpact"))
 			{
-				weaponInfo->impactFunc = CG_MeleeImpact;
+				weaponInfo->impactFunc = CG_SmallExplosionImpact;
 			}
 			else if (!Q_stricmp(filename, "BigExplosionImpact"))
 			{
-				weaponInfo->impactFunc = CG_MeleeImpact;
+				weaponInfo->impactFunc = CG_BigExplosionImpact;
 			}
 			else if (!Q_stricmp(filename, "DynamiteExplosionImpact"))
 			{
-				weaponInfo->impactFunc = CG_MeleeImpact;
+				weaponInfo->impactFunc = CG_DynamiteExplosionImpact;
 			}
-			else if (!Q_stricmp(filename, "mapMortarImpact"))
+			else if (!Q_stricmp(filename, "MapMortarImpact"))
 			{
-				weaponInfo->impactFunc = CG_MeleeImpact;
+				weaponInfo->impactFunc = CG_MapMortarImpact;
 			}
 		}
 		else if (!Q_stricmp(token.string, "impactSound"))
@@ -1756,7 +1771,7 @@ static qboolean CG_RW_ParseClient(int handle, weaponInfo_t *weaponInfo)
 		}
 		else if (!Q_stricmp(token.string, "impactMark"))
 		{
-			if (!CG_RW_ParseImpactSound(handle, weaponInfo))
+			if (!CG_RW_ParseImpactMark(handle, weaponInfo))
 			{
 				return qfalse;
 			}
@@ -5294,26 +5309,46 @@ void CG_WaterRipple(qhandle_t shader, vec3_t loc, vec3_t dir, int size, int life
 	le->color[3]      = 1.0f;
 }
 
-void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
+/**
+ * @brief CG_GetRandomImpactSound
+ * @param[in] weapon
+ * @param[in] surf
+ * @return
+ */
+static sfxHandle_t CG_GetRandomImpactSound(int weapon, impactSurface_t surf)
+{
+	int c;
+
+	c = sizeof(cg_weapons[weapon].impactSound[surf]) / sizeof(cg_weapons[weapon].impactSound[surf][0]);
+
+	if (c > 0)
+	{
+		c = rand() % c;
+
+		return cg_weapons[weapon].impactSound[surf][c];
+	}
+
+	return 0;
+}
+
+void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
 {
 	if (!hitFlesh)
 	{
-		*radius = 1 + rand() % 2;
+		hitImpact->radius = 1 + rand() % 2;
 
 		CG_AddBulletParticles(origin, dir, 20, 800, 3 + rand() % 6, 1.0f);
 	}
 
-	*markDuration = cg_markTime.integer;
+	hitImpact->markDuration = cg_markTime.integer;
 }
 
-void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
+void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
 {
-//	volume = 64;
+	hitImpact->volume = 64;
 
-	// clientNum is a dummy field used to define what sort of effect to spawn
 	if (missileEffect == PS_FX_NONE)
 	{
-		// RF, why is this here? we need sparks if clientNum = 0, used for warzombie
 		CG_AddSparks(origin, dir, 350, 200, 15 + rand() % 7, 0.2f);
 	}
 	else if (missileEffect == PS_FX_COMMON)       // just do a little smoke puff
@@ -5354,32 +5389,10 @@ void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, i
 		{
 			// mark and sound can potentially use the surface for override values
 			//mark   = cgs.media.bulletMarkShader;    // default
-			*radius = 1.0f + 0.5f * (rand() % 2);
-
-//            if ((surfFlags & SURF_METAL) || (surfFlags & SURF_ROOF))
-//            {
-//                sfx  = cgs.media.sfx_bullet_metalhit[rand() % MAX_IMPACT_SOUNDS];
-//                mark = cgs.media.bulletMarkShaderMetal;
-//            }
-//            else if (surfFlags & SURF_WOOD)
-//            {
-//                sfx     = cgs.media.sfx_bullet_woodhit[rand() % MAX_IMPACT_SOUNDS];
-//                mark    = cgs.media.bulletMarkShaderWood;
-//                radius += 0.4f;       // experimenting with different mark sizes per surface
-//            }
-//            else if (surfFlags & SURF_GLASS)
-//            {
-//                sfx  = cgs.media.sfx_bullet_glasshit[rand() % MAX_IMPACT_SOUNDS];
-//                mark = cgs.media.bulletMarkShaderGlass;
-//            }
-//            else
-//            {
-//                sfx  = cgs.media.sfx_bullet_stonehit[rand() % MAX_IMPACT_SOUNDS];
-//                mark = cgs.media.bulletMarkShader;
-//            }
+			hitImpact->radius = 1.0f + 0.5f * (rand() % 2);
 
 			// set mark duration
-			*markDuration = cg_markTime.integer;
+			hitImpact->markDuration = cg_markTime.integer;
 		}
 	}
 	else if (missileEffect == PS_FX_WATER)
@@ -5389,32 +5402,274 @@ void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, i
 		CG_AddDirtBulletParticles(origin, dir, 190, 900, 5, 0.5f, 80, 16, 0.125f, cgs.media.dirtParticle2Shader);
 
 		// play a water splash
-//		mod      = cgs.media.waterSplashModel;
-//		shader   = cgs.media.waterSplashShader;
-//		duration = 250;
+		hitImpact->mod      = cgs.media.waterSplashModel;
+		hitImpact->shader   = cgs.media.waterSplashShader;
+		hitImpact->duration = 250;
+	}
+}
+
+void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
+{
+	trace_t trace;
+	vec3_t  tmpv;
+
+	hitImpact->shader        = cgs.media.rocketExplosionShader;    // copied from RL
+	hitImpact->sfx2range     = 400;
+	hitImpact->mark          = cgs.media.burnMarkShader;
+	hitImpact->markDuration  = cg_markTime.integer * 3;
+	hitImpact->radius        = 64;
+	hitImpact->light         = 300;
+	hitImpact->isSprite      = qtrue;
+	hitImpact->duration      = 1000;
+	hitImpact->lightColor[0] = 0.75f;
+	hitImpact->lightColor[1] = 0.5f;
+	hitImpact->lightColor[2] = 0.1f;
+
+	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
+	{
+		VectorCopy(origin, tmpv);
+		tmpv[2] += 10000;
+
+		trap_CM_BoxTrace(&trace, tmpv, origin, NULL, NULL, 0, MASK_WATER);
+		CG_WaterRipple(cgs.media.wakeMarkShaderAnim, trace.endpos, dir, 150, 1000);
+
+		CG_AddDirtBulletParticles(trace.endpos, dir, 400, 900, 15, 0.5f, 256, 128, 0.125f, cgs.media.dirtParticle2Shader);
+	}
+	else
+	{
+		vec3_t tmpv2, sprOrg, sprVel;
+
+		// explosion sprite animation
+		VectorMA(origin, 16, dir, sprOrg);
+		VectorScale(dir, 100, sprVel);
+
+		VectorCopy(origin, tmpv);
+		tmpv[2] += 20;
+		VectorCopy(origin, tmpv2);
+		tmpv2[2] -= 20;
+		trap_CM_BoxTrace(&trace, tmpv, tmpv2, NULL, NULL, 0, MASK_SHOT);
+
+		if ((trace.surfaceFlags & SURF_GRASS) || (trace.surfaceFlags & SURF_GRAVEL))
+		{
+			CG_AddDirtBulletParticles(origin, dir, 400, 2000, 10, 0.5f, 200, 75, 0.25f, cgs.media.dirtParticle1Shader);
+		}
+
+		CG_ParticleExplosion("explode1", sprOrg, sprVel, 700, 60, 240, qtrue);
+		CG_AddDebris(origin, dir, 280, 1400, 7 + rand() % 2, &trace);
+	}
+}
+
+void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
+{
+	trace_t trace;
+	vec3_t  tmpv;
+
+	hitImpact->sfx2range    = 800;
+	hitImpact->markDuration = cg_markTime.integer * 3;
+	hitImpact->radius       = 128; // bigger mark radius
+	hitImpact->light        = 600;
+	hitImpact->isSprite     = qtrue;
+	hitImpact->duration     = 1000;
+	// changed to flamethrower colors
+	hitImpact->lightColor[0] = 0.75f;
+	hitImpact->lightColor[1] = 0.5f;
+	hitImpact->lightColor[2] = 0.1f;
+
+	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
+	{
+		VectorCopy(origin, tmpv);
+		tmpv[2] += 10000;
+
+		trap_CM_BoxTrace(&trace, tmpv, origin, NULL, NULL, 0, MASK_WATER);
+		CG_WaterRipple(cgs.media.wakeMarkShaderAnim, trace.endpos, dir, 300, 2000);
+
+		CG_AddDirtBulletParticles(trace.endpos, dir, (int)(400 + random() * 200), 900, 15, 0.5f, 512, 128, 0.125f, cgs.media.dirtParticle2Shader);
+		CG_AddDirtBulletParticles(trace.endpos, dir, (int)(400 + random() * 600), 1400, 15, 0.5f, 128, 512, 0.125f, cgs.media.dirtParticle2Shader);
+	}
+	else
+	{
+		int    i, j;
+		vec3_t tmpv2, sprOrg, sprVel;
+
+		// explosion sprite animation
+		VectorMA(origin, 24, dir, sprOrg);
+		VectorScale(dir, 64, sprVel);
+
+		VectorCopy(origin, tmpv);
+		tmpv[2] += 20;
+		VectorCopy(origin, tmpv2);
+		tmpv2[2] -= 20;
+		trap_CM_BoxTrace(&trace, tmpv, tmpv2, NULL, NULL, 0, MASK_SHOT);
+
+		if ((trace.surfaceFlags & SURF_GRASS) || (trace.surfaceFlags & SURF_GRAVEL))
+		{
+			CG_AddDirtBulletParticles(origin, dir, (int)(400 + random() * 200), 3000, 10, 0.5f, 400, 256, 0.25f, cgs.media.dirtParticle1Shader);
+		}
+
+		CG_ParticleExplosion("explode1", sprOrg, sprVel, 1600, 20, (int)(200 + random() * 400), qtrue);
+
+		for (i = 0; i < 4; i++)     // random vector based on plane normal so explosions move away from walls/dirt/etc
+		{
+			for (j = 0; j < 3; j++)
+			{
+				sprOrg[j] = origin[j] + 50 * crandom();
+				sprVel[j] = 0.35f * crandom();
+			}
+
+			VectorAdd(sprVel, trace.plane.normal, sprVel);
+			VectorScale(sprVel, 300, sprVel);
+			CG_ParticleExplosion("explode1", sprOrg, sprVel, 1600, 40, 260 + rand() % 120, qfalse);
+		}
+
+		CG_AddDebris(origin, dir, (int)(400 + random() * 200), rand() % 2000 + 1000, 5 + rand() % 5, &trace);
+	}
+}
+
+void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
+{
+	trace_t trace;
+	vec3_t  tmpv;
+
+	hitImpact->sfx2range     = 1200;
+	hitImpact->markDuration  = cg_markTime.integer * 3;
+	hitImpact->radius        = 96; //  bigger mark radius
+	hitImpact->light         = 300;
+	hitImpact->isSprite      = qtrue;
+	hitImpact->duration      = 1000;
+	hitImpact->lightColor[0] = 0.75f;
+	hitImpact->lightColor[1] = 0.5f;
+	hitImpact->lightColor[2] = 0.1f;
+
+	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
+	{
+		VectorCopy(origin, tmpv);
+		tmpv[2] += 10000;
+
+		trap_CM_BoxTrace(&trace, tmpv, origin, NULL, NULL, 0, MASK_WATER);
+		CG_WaterRipple(cgs.media.wakeMarkShaderAnim, trace.endpos, dir, 150, 1000);
+		CG_AddDirtBulletParticles(trace.endpos, dir, 900, 1800, 15, 0.5f, 350, 128, 0.125f, cgs.media.dirtParticle2Shader);
+	}
+	else
+	{
+		int    i, j;
+		vec3_t tmpv2, sprOrg, sprVel;
+
+		VectorScale(dir, 16, sprVel);
+
+		VectorCopy(origin, tmpv);
+		tmpv[2] += 20;
+		VectorCopy(origin, tmpv2);
+		tmpv2[2] -= 20;
+		trap_CM_BoxTrace(&trace, tmpv, tmpv2, NULL, NULL, 0, MASK_SHOT);
+
+		if ((trace.surfaceFlags & SURF_GRASS) || (trace.surfaceFlags & SURF_GRAVEL))
+		{
+			CG_AddDirtBulletParticles(origin, dir, 600, 2000, 10, 0.5f, 275, 125, 0.25f, cgs.media.dirtParticle1Shader);
+		}
+
+		for (i = 0; i < 5; i++)
+		{
+			for (j = 0; j < 3; j++)
+			{
+				sprOrg[j] = origin[j] + 64 * dir[j] + 24 * crandom();
+			}
+
+			sprVel[2] += rand() % 50;
+			CG_ParticleExplosion("blacksmokeanim", sprOrg, sprVel, 3500 + rand() % 250, 10, 250 + rand() % 60, qfalse);
+		}
+
+		VectorMA(origin, 24, dir, sprOrg);
+		VectorScale(dir, 64, sprVel);
+		CG_ParticleExplosion("explode1", sprOrg, sprVel, 1000, 20, 300, qtrue);
+	}
+}
+
+void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
+{
+	trace_t trace;
+	vec3_t  tmpv;
+
+	hitImpact->shader        = cgs.media.rocketExplosionShader;
+	hitImpact->sfx2range     = 400;
+	hitImpact->markDuration  = cg_markTime.integer * 3;
+	hitImpact->radius        = 128; // bigger mark radius
+	hitImpact->light         = 300;
+	hitImpact->isSprite      = qtrue;
+	hitImpact->duration      = 1000;
+	hitImpact->lightColor[0] = 0.75f;
+	hitImpact->lightColor[1] = 0.5f;
+	hitImpact->lightColor[2] = 0.1f;
+
+	// biggie dynamite explosions that mean it -- dynamite is biggest explode, so it gets extra crap thrown on
+	// check for water/dirt spurt
+	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
+	{
+		VectorCopy(origin, tmpv);
+		tmpv[2] += 10000;
+
+		trap_CM_BoxTrace(&trace, tmpv, origin, NULL, NULL, 0, MASK_WATER);
+		CG_WaterRipple(cgs.media.wakeMarkShaderAnim, trace.endpos, dir, 300, 2000);
+
+		CG_AddDirtBulletParticles(trace.endpos, dir, (int)(400 + random() * 200), 900, 15, 0.5f, 512, 128, 0.125f, cgs.media.dirtParticle2Shader);
+		CG_AddDirtBulletParticles(trace.endpos, dir, (int)(400 + random() * 600), 1400, 15, 0.5f, 128, 512, 0.125f, cgs.media.dirtParticle2Shader);
+	}
+	else
+	{
+		int    i, j;
+		vec3_t tmpv2, sprOrg, sprVel;
+
+		VectorSet(tmpv, origin[0], origin[1], origin[2] + 20);
+		VectorSet(tmpv2, origin[0], origin[1], origin[2] - 20);
+		trap_CM_BoxTrace(&trace, tmpv, tmpv2, NULL, NULL, 0, MASK_SHOT);
+
+		if ((trace.surfaceFlags & SURF_GRASS) || (trace.surfaceFlags & SURF_GRAVEL))
+		{
+			CG_AddDirtBulletParticles(origin, dir, (int)(400 + random() * 200), 3000, 10, 0.5f, 400, 256, 0.25f, cgs.media.dirtParticle1Shader);
+		}
+
+		for (i = 0; i < 3; i++)
+		{
+			for (j = 0; j < 3; j++)
+			{
+				sprOrg[j] = origin[j] + 150 * crandom();
+				sprVel[j] = 0.35f * crandom();
+			}
+
+			VectorAdd(sprVel, trace.plane.normal, sprVel);
+			VectorScale(sprVel, 130, sprVel);
+			CG_ParticleExplosion("blacksmokeanim", sprOrg, sprVel, (int)(6000 + random() * 2000), 40, (int)(400 + random() * 200), qfalse);
+		}
+
+		for (i = 0; i < 4; i++)     // random vector based on plane normal so explosions move away from walls/dirt/etc
+		{
+			for (j = 0; j < 3; j++)
+			{
+				sprOrg[j] = origin[j] + 100 * crandom();
+				sprVel[j] = 0.65f * crandom(); // wider fireball spread
+			}
+
+			VectorAdd(sprVel, trace.plane.normal, sprVel);
+			VectorScale(sprVel, random() * 100 + 300, sprVel);
+			CG_ParticleExplosion("explode1", sprOrg, sprVel, 1000 + rand() % 1450, 40, (int)(400 + random() * 200), (i == 0 ? qtrue : qfalse));
+		}
+
+		CG_AddDebris(origin, dir, (int)(400 + random() * 200), rand() % 2000 + 1400, 12 + rand() % 12, &trace);
 	}
 }
 
 /**
- * @brief CG_GetRandomImpactSound
- * @param[in] weapon
- * @param[in] surf
- * @return
+ * @brief CG_HitImpactInit
+ * @param[in,out] hitImpact
  */
-static sfxHandle_t CG_GetRandomImpactSound(int weapon, impactSurface_t surf)
+void CG_HitImpactInit(hitImpact_t *hitImpact)
 {
-	int c;
+	Com_Memset(hitImpact, 0, sizeof(hitImpact_t));
+	hitImpact->duration     = 600;
+	hitImpact->markDuration = -1;   // keep -1 markDuration for temporary marks
+	hitImpact->volume       = 127;
+	hitImpact->radius       = 32;
 
-	c = sizeof(cg_weapons[weapon].impactSound[surf]) / sizeof(cg_weapons[weapon].impactSound[surf][0]);
-
-	if (c > 0)
-	{
-		c = rand() % c;
-
-		return cg_weapons[weapon].impactSound[surf][c];
-	}
-
-	return 0;
+	VectorSet(hitImpact->lightColor, 1, 1, 0);
 }
 
 /**
@@ -5427,13 +5682,12 @@ static sfxHandle_t CG_GetRandomImpactSound(int weapon, impactSurface_t surf)
  */
 void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh)     // modified to send missilehitwall surface parameters
 {
-	qhandle_t   mod = 0, mark = 0, shader = 0;
-	sfxHandle_t sfx = 0, sfx2 = 0;
-	qboolean    isSprite = qfalse;
-	int         duration = 600, i, j, markDuration = -1, volume = 127; // keep -1 markDuration for temporary marks
-	trace_t     trace;
-	vec3_t      lightColor = { 1, 1, 0 }, tmpv, tmpv2, sprOrg, sprVel;
-	float       radius = 32, light = 0, sfx2range = 0;
+	impactSurface_t impactSurfaceIndex = W_IMPACT_DEFAULT;
+	hitImpact_t     hitImpact;
+
+	CG_HitImpactInit(&hitImpact);
+
+	cg_weapons[weapon].impactFunc(weapon, missileEffect, origin, dir, surfFlags, hitFlesh, &hitImpact);
 
 	if (!cg_weapons[weapon].impactFunc)
 	{
@@ -5449,430 +5703,47 @@ void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir,
 
 		if (missileEffect == PS_FX_COMMON)
 		{
-			impactSurface_t i;
-
-			for (i = 0; i < W_MAX_IMPACTS; i++)
+			for (impactSurfaceIndex = 0; impactSurfaceIndex < W_MAX_IMPACTS; impactSurfaceIndex++)
 			{
-				if (surfFlags & impactSurfaceTable[i].surfaceType)
+				if (surfFlags & impactSurfaceTable[impactSurfaceIndex].surfaceType)
 				{
-					sfx  = CG_GetRandomImpactSound(weapon, i);
-					mark = cg_weapons[weapon].impactMark[i];
-
 					break;
 				}
+			}
+
+			if (impactSurfaceIndex == W_MAX_IMPACTS)
+			{
+				impactSurfaceIndex = W_IMPACT_DEFAULT;
 			}
 		}
 		else if (missileEffect == PS_FX_WATER)
 		{
-			sfx  = CG_GetRandomImpactSound(weapon, W_IMPACT_WATER);
-			mark = cg_weapons[weapon].impactMark[W_IMPACT_WATER];
+			impactSurfaceIndex = W_IMPACT_WATER;
 		}
 	}
 	else if (hitFlesh)      // melee only
 	{
-		sfx = CG_GetRandomImpactSound(weapon, W_IMPACT_FLESH);
+		impactSurfaceIndex = W_IMPACT_FLESH;
 	}
 
-	// no sfx found for given surface, used default one
-	if (!sfx)
+	hitImpact.sfx  = CG_GetRandomImpactSound(weapon, impactSurfaceIndex);
+	hitImpact.mark = cg_weapons[weapon].impactMark[impactSurfaceIndex];
+
+	// no sfx found for given surface, force using default one if exist
+	if (!hitImpact.sfx)
 	{
-		sfx  = CG_GetRandomImpactSound(weapon, W_IMPACT_DEFAULT);
-		mark = cg_weapons[weapon].impactMark[W_IMPACT_DEFAULT];
+		hitImpact.sfx  = CG_GetRandomImpactSound(weapon, W_IMPACT_DEFAULT);
+		hitImpact.mark = cg_weapons[weapon].impactMark[W_IMPACT_DEFAULT];
 	}
 
+	hitImpact.sfx2 = CG_GetRandomImpactSound(weapon, W_IMPACT_FAR);
 
-
-	if (GetWeaponTableData(weapon)->type & WEAPON_TYPE_MELEE)
+	if (hitImpact.sfx)
 	{
-		i = rand() % 4;
-
-		if (!hitFlesh)
-		{
-			sfx    = cgs.media.sfx_knifehit[4];     // different values for different types (stone/metal/wood/etc.)
-			mark   = cgs.media.bulletMarkShader;
-			radius = 1 + rand() % 2;
-
-			CG_AddBulletParticles(origin, dir, 20, 800, 3 + rand() % 6, 1.0f);
-		}
-		else
-		{
-			sfx = cgs.media.sfx_knifehit[i];
-		}
-
-		// set mark duration
-		markDuration = cg_markTime.integer;
-	}
-	else if (GetWeaponTableData(weapon)->type & (WEAPON_TYPE_SMG | WEAPON_TYPE_RIFLE | WEAPON_TYPE_PISTOL | WEAPON_TYPE_MG))
-	{
-		volume = 64;
-
-		// clientNum is a dummy field used to define what sort of effect to spawn
-		if (missileEffect == PS_FX_NONE)
-		{
-			// RF, why is this here? we need sparks if clientNum = 0, used for warzombie
-			CG_AddSparks(origin, dir, 350, 200, 15 + rand() % 7, 0.2f);
-		}
-		else if (missileEffect == PS_FX_COMMON)       // just do a little smoke puff
-		{
-			vec3_t d, o;
-			VectorMA(origin, 12, dir, o);
-			VectorScale(dir, 7, d);
-			d[2] += 16;
-
-			//  use dirt images
-			if (((surfFlags & SURF_GRASS) || (surfFlags & SURF_GRAVEL) || (surfFlags & SURF_SNOW)))       // added SURF_SNOW
-			{   // some debris particles
-				// added surf_snow
-				if (surfFlags & SURF_SNOW)
-				{
-					CG_AddDirtBulletParticles(origin, dir, 190, 900, 5, 0.25f, 80, 32, 0.5f, cgs.media.dirtParticle2Shader);
-				}
-				else
-				{
-					CG_AddDirtBulletParticles(origin, dir, 190, 900, 5, 0.5f, 80, 16, 0.5f, cgs.media.dirtParticle1Shader);
-				}
-			}
-			else
-			{
-				CG_ParticleImpactSmokePuff(cgs.media.smokeParticleShader, o);
-
-				// some debris particles
-				CG_AddBulletParticles(origin, dir, 20, 800, 3 + rand() % 6, 1.0f);      // rand scale
-
-				// just do a little one
-				//if (rand() % 3 == 0)
-				//{
-				//	CG_AddSparks(origin, dir, 450, 300, 3 + rand() % 3, 0.5);     // rand scale
-				//}
-			}
-
-			// optimization, only spawn the bullet hole if we are close
-			// enough to see it, this way we can leave other marks around a lot
-			// longer, since most of the time we can't actually see the bullet holes
-			// - small modification.  only do this for non-rifles (so you can see your shots hitting when you're zooming with a rifle scope)
-			if ((GetWeaponTableData(weapon)->type & WEAPON_TYPE_SCOPED) || (Distance(cg.refdef_current->vieworg, origin) < 384))
-			{
-				// mark and sound can potentially use the surface for override values
-				//mark   = cgs.media.bulletMarkShader;    // default
-				radius = 1.0f + 0.5f * (rand() % 2);
-
-				if ((surfFlags & SURF_METAL) || (surfFlags & SURF_ROOF))
-				{
-					sfx  = cgs.media.sfx_bullet_metalhit[rand() % MAX_IMPACT_SOUNDS];
-					mark = cgs.media.bulletMarkShaderMetal;
-				}
-				else if (surfFlags & SURF_WOOD)
-				{
-					sfx     = cgs.media.sfx_bullet_woodhit[rand() % MAX_IMPACT_SOUNDS];
-					mark    = cgs.media.bulletMarkShaderWood;
-					radius += 0.4f;       // experimenting with different mark sizes per surface
-				}
-				else if (surfFlags & SURF_GLASS)
-				{
-					sfx  = cgs.media.sfx_bullet_glasshit[rand() % MAX_IMPACT_SOUNDS];
-					mark = cgs.media.bulletMarkShaderGlass;
-				}
-				else
-				{
-					sfx  = cgs.media.sfx_bullet_stonehit[rand() % MAX_IMPACT_SOUNDS];
-					mark = cgs.media.bulletMarkShader;
-				}
-
-				// set mark duration
-				markDuration = cg_markTime.integer;
-			}
-		}
-		else if (missileEffect == PS_FX_WATER)
-		{
-			sfx  = 0;
-			mark = 0;
-
-			// needed to do the CG_WaterRipple using a localent since I needed the timer reset on the shader for each shot
-			CG_WaterRipple(cgs.media.wakeMarkShaderAnim, origin, tv(0, 0, 1), 32, 1000);
-			CG_AddDirtBulletParticles(origin, dir, 190, 900, 5, 0.5f, 80, 16, 0.125f, cgs.media.dirtParticle2Shader);
-
-			// play a water splash
-			mod      = cgs.media.waterSplashModel;
-			shader   = cgs.media.waterSplashShader;
-			duration = 250;
-		}
-	}
-	else if (weapon == WP_MAPMORTAR)
-	{
-		sfx           = cgs.media.sfx_rockexp;
-		sfx2          = cgs.media.sfx_rockexpDist;
-		sfx2range     = 1200;
-		mark          = cgs.media.burnMarkShader;
-		markDuration  = cg_markTime.integer * 3;
-		radius        = 96; //  bigger mark radius
-		light         = 300;
-		isSprite      = qtrue;
-		duration      = 1000;
-		lightColor[0] = 0.75f;
-		lightColor[1] = 0.5f;
-		lightColor[2] = 0.1f;
-
-		VectorScale(dir, 16, sprVel);
-
-		if (CG_PointContents(origin, 0) & CONTENTS_WATER)
-		{
-			VectorCopy(origin, tmpv);
-			tmpv[2] += 10000;
-
-			trap_CM_BoxTrace(&trace, tmpv, origin, NULL, NULL, 0, MASK_WATER);
-			CG_WaterRipple(cgs.media.wakeMarkShaderAnim, trace.endpos, dir, 150, 1000);
-			CG_AddDirtBulletParticles(trace.endpos, dir, 900, 1800, 15, 0.5f, 350, 128, 0.125f, cgs.media.dirtParticle2Shader);
-		}
-		else
-		{
-			VectorCopy(origin, tmpv);
-			tmpv[2] += 20;
-			VectorCopy(origin, tmpv2);
-			tmpv2[2] -= 20;
-			trap_CM_BoxTrace(&trace, tmpv, tmpv2, NULL, NULL, 0, MASK_SHOT);
-
-			if ((trace.surfaceFlags & SURF_GRASS) || (trace.surfaceFlags & SURF_GRAVEL))
-			{
-				CG_AddDirtBulletParticles(origin, dir, 600, 2000, 10, 0.5f, 275, 125, 0.25f, cgs.media.dirtParticle1Shader);
-			}
-
-			for (i = 0; i < 5; i++)
-			{
-				for (j = 0; j < 3; j++)
-				{
-					sprOrg[j] = origin[j] + 64 * dir[j] + 24 * crandom();
-				}
-
-				sprVel[2] += rand() % 50;
-				CG_ParticleExplosion("blacksmokeanim", sprOrg, sprVel, 3500 + rand() % 250, 10, 250 + rand() % 60, qfalse);
-			}
-
-			VectorMA(origin, 24, dir, sprOrg);
-			VectorScale(dir, 64, sprVel);
-			CG_ParticleExplosion("explode1", sprOrg, sprVel, 1000, 20, 300, qtrue);
-		}
-	}
-	else if (weapon == WP_DYNAMITE)
-	{
-		shader        = cgs.media.rocketExplosionShader;
-		sfx           = cgs.media.sfx_dynamiteexp;
-		sfx2          = cgs.media.sfx_dynamiteexpDist;
-		sfx2range     = 400;
-		mark          = cgs.media.burnMarkShader;
-		markDuration  = cg_markTime.integer * 3;
-		radius        = 128; // bigger mark radius
-		light         = 300;
-		isSprite      = qtrue;
-		duration      = 1000;
-		lightColor[0] = 0.75f;
-		lightColor[1] = 0.5f;
-		lightColor[2] = 0.1f;
-
-		// biggie dynamite explosions that mean it -- dynamite is biggest explode, so it gets extra crap thrown on
-		// check for water/dirt spurt
-		if (CG_PointContents(origin, 0) & CONTENTS_WATER)
-		{
-			VectorCopy(origin, tmpv);
-			tmpv[2] += 10000;
-
-			trap_CM_BoxTrace(&trace, tmpv, origin, NULL, NULL, 0, MASK_WATER);
-			CG_WaterRipple(cgs.media.wakeMarkShaderAnim, trace.endpos, dir, 300, 2000);
-
-			CG_AddDirtBulletParticles(trace.endpos, dir, (int)(400 + random() * 200), 900, 15, 0.5f, 512, 128, 0.125f, cgs.media.dirtParticle2Shader);
-			CG_AddDirtBulletParticles(trace.endpos, dir, (int)(400 + random() * 600), 1400, 15, 0.5f, 128, 512, 0.125f, cgs.media.dirtParticle2Shader);
-		}
-		else
-		{
-			VectorSet(tmpv, origin[0], origin[1], origin[2] + 20);
-			VectorSet(tmpv2, origin[0], origin[1], origin[2] - 20);
-			trap_CM_BoxTrace(&trace, tmpv, tmpv2, NULL, NULL, 0, MASK_SHOT);
-
-			if ((trace.surfaceFlags & SURF_GRASS) || (trace.surfaceFlags & SURF_GRAVEL))
-			{
-				CG_AddDirtBulletParticles(origin, dir, (int)(400 + random() * 200), 3000, 10, 0.5f, 400, 256, 0.25f, cgs.media.dirtParticle1Shader);
-			}
-
-			for (i = 0; i < 3; i++)
-			{
-				for (j = 0; j < 3; j++)
-				{
-					sprOrg[j] = origin[j] + 150 * crandom();
-					sprVel[j] = 0.35f * crandom();
-				}
-
-				VectorAdd(sprVel, trace.plane.normal, sprVel);
-				VectorScale(sprVel, 130, sprVel);
-				CG_ParticleExplosion("blacksmokeanim", sprOrg, sprVel, (int)(6000 + random() * 2000), 40, (int)(400 + random() * 200), qfalse);
-			}
-
-			for (i = 0; i < 4; i++)     // random vector based on plane normal so explosions move away from walls/dirt/etc
-			{
-				for (j = 0; j < 3; j++)
-				{
-					sprOrg[j] = origin[j] + 100 * crandom();
-					sprVel[j] = 0.65f * crandom(); // wider fireball spread
-				}
-
-				VectorAdd(sprVel, trace.plane.normal, sprVel);
-				VectorScale(sprVel, random() * 100 + 300, sprVel);
-				CG_ParticleExplosion("explode1", sprOrg, sprVel, 1000 + rand() % 1450, 40, (int)(400 + random() * 200), (i == 0 ? qtrue : qfalse));
-			}
-
-			CG_AddDebris(origin, dir, (int)(400 + random() * 200), rand() % 2000 + 1400, 12 + rand() % 12, &trace);
-		}
-	}
-	else if ((GetWeaponTableData(weapon)->type & (WEAPON_TYPE_RIFLENADE | WEAPON_TYPE_MORTAR | WEAPON_TYPE_GRENADE)) || weapon == WP_SATCHEL || weapon == WP_LANDMINE)
-	{
-		if (weapon == WP_SATCHEL)
-		{
-			sfx  = cgs.media.sfx_satchelexp;
-			sfx2 = cgs.media.sfx_satchelexpDist;
-		}
-		else if (weapon == WP_LANDMINE)
-		{
-			sfx  = cgs.media.sfx_landmineexp;
-			sfx2 = cgs.media.sfx_landmineexpDist;
-		}
-		else if (GetWeaponTableData(weapon)->type & WEAPON_TYPE_MORTAR)
-		{
-			sfx = sfx2 = 0;
-		}
-		else // (weapon == WP_GRENADE_LAUNCHER || weapon == WP_GRENADE_PINEAPPLE || weapon == WP_GPG40 || weapon == WP_M7
-		{
-			sfx  = cgs.media.sfx_grenexp;
-			sfx2 = cgs.media.sfx_grenexpDist;
-		}
-
-		shader        = cgs.media.rocketExplosionShader;    // copied from RL
-		sfx2range     = 400;
-		mark          = cgs.media.burnMarkShader;
-		markDuration  = cg_markTime.integer * 3;
-		radius        = 64;
-		light         = 300;
-		isSprite      = qtrue;
-		duration      = 1000;
-		lightColor[0] = 0.75f;
-		lightColor[1] = 0.5f;
-		lightColor[2] = 0.1f;
-
-		// explosion sprite animation
-		VectorMA(origin, 16, dir, sprOrg);
-		VectorScale(dir, 100, sprVel);
-
-		if (CG_PointContents(origin, 0) & CONTENTS_WATER)
-		{
-			sfx = cgs.media.sfx_rockexpWater;
-
-			VectorCopy(origin, tmpv);
-			tmpv[2] += 10000;
-
-			trap_CM_BoxTrace(&trace, tmpv, origin, NULL, NULL, 0, MASK_WATER);
-			CG_WaterRipple(cgs.media.wakeMarkShaderAnim, trace.endpos, dir, 150, 1000);
-
-			CG_AddDirtBulletParticles(trace.endpos, dir, 400, 900, 15, 0.5f, 256, 128, 0.125f, cgs.media.dirtParticle2Shader);
-		}
-		else
-		{
-			VectorCopy(origin, tmpv);
-			tmpv[2] += 20;
-			VectorCopy(origin, tmpv2);
-			tmpv2[2] -= 20;
-			trap_CM_BoxTrace(&trace, tmpv, tmpv2, NULL, NULL, 0, MASK_SHOT);
-
-			if ((trace.surfaceFlags & SURF_GRASS) || (trace.surfaceFlags & SURF_GRAVEL))
-			{
-				CG_AddDirtBulletParticles(origin, dir, 400, 2000, 10, 0.5f, 200, 75, 0.25f, cgs.media.dirtParticle1Shader);
-			}
-
-			CG_ParticleExplosion("explode1", sprOrg, sprVel, 700, 60, 240, qtrue);
-			CG_AddDebris(origin, dir, 280, 1400, 7 + rand() % 2, &trace);
-		}
-	}
-	else if ((GetWeaponTableData(weapon)->type & WEAPON_TYPE_PANZER) || weapon == VERYBIGEXPLOSION || weapon == WP_ARTY || weapon == WP_AIRSTRIKE || weapon == WP_SMOKE_MARKER)
-	{
-		sfx  = cgs.media.sfx_rockexp;
-		sfx2 = cgs.media.sfx_rockexpDist;
-
-		if (weapon == VERYBIGEXPLOSION || weapon == WP_ARTY || weapon == WP_AIRSTRIKE)
-		{
-			sfx  = cgs.media.sfx_artilleryExp[rand() % 3];
-			sfx2 = cgs.media.sfx_artilleryDist;
-		}
-		else if (weapon == WP_SMOKE_MARKER)
-		{
-			sfx  = cgs.media.sfx_airstrikeExp[rand() % 3];
-			sfx2 = cgs.media.sfx_airstrikeDist;
-		}
-
-		sfx2range    = 800;
-		mark         = cgs.media.burnMarkShader;
-		markDuration = cg_markTime.integer * 3;
-		radius       = 128; // bigger mark radius
-		light        = 600;
-		isSprite     = qtrue;
-		duration     = 1000;
-		// changed to flamethrower colors
-		lightColor[0] = 0.75f;
-		lightColor[1] = 0.5f;
-		lightColor[2] = 0.1f;
-
-		// explosion sprite animation
-		VectorMA(origin, 24, dir, sprOrg);
-		VectorScale(dir, 64, sprVel);
-
-		if (CG_PointContents(origin, 0) & CONTENTS_WATER)
-		{
-			VectorCopy(origin, tmpv);
-			tmpv[2] += 10000;
-
-			trap_CM_BoxTrace(&trace, tmpv, origin, NULL, NULL, 0, MASK_WATER);
-			CG_WaterRipple(cgs.media.wakeMarkShaderAnim, trace.endpos, dir, 300, 2000);
-
-			CG_AddDirtBulletParticles(trace.endpos, dir, (int)(400 + random() * 200), 900, 15, 0.5f, 512, 128, 0.125f, cgs.media.dirtParticle2Shader);
-			CG_AddDirtBulletParticles(trace.endpos, dir, (int)(400 + random() * 600), 1400, 15, 0.5f, 128, 512, 0.125f, cgs.media.dirtParticle2Shader);
-		}
-		else
-		{
-			VectorCopy(origin, tmpv);
-			tmpv[2] += 20;
-			VectorCopy(origin, tmpv2);
-			tmpv2[2] -= 20;
-			trap_CM_BoxTrace(&trace, tmpv, tmpv2, NULL, NULL, 0, MASK_SHOT);
-
-			if ((trace.surfaceFlags & SURF_GRASS) || (trace.surfaceFlags & SURF_GRAVEL))
-			{
-				CG_AddDirtBulletParticles(origin, dir, (int)(400 + random() * 200), 3000, 10, 0.5f, 400, 256, 0.25f, cgs.media.dirtParticle1Shader);
-			}
-
-			CG_ParticleExplosion("explode1", sprOrg, sprVel, 1600, 20, (int)(200 + random() * 400), qtrue);
-
-			for (i = 0; i < 4; i++)     // random vector based on plane normal so explosions move away from walls/dirt/etc
-			{
-				for (j = 0; j < 3; j++)
-				{
-					sprOrg[j] = origin[j] + 50 * crandom();
-					sprVel[j] = 0.35f * crandom();
-				}
-
-				VectorAdd(sprVel, trace.plane.normal, sprVel);
-				VectorScale(sprVel, 300, sprVel);
-				CG_ParticleExplosion("explode1", sprOrg, sprVel, 1600, 40, 260 + rand() % 120, qfalse);
-			}
-
-			CG_AddDebris(origin, dir, (int)(400 + random() * 200), rand() % 2000 + 1000, 5 + rand() % 5, &trace);
-		}
-	}
-	else    // WP_FLAMETHROWER, ...
-	{
-		return;
+		trap_S_StartSoundVControl(origin, -1, CHAN_AUTO, hitImpact.sfx, hitImpact.volume);
 	}
 
-	if (sfx)
-	{
-		trap_S_StartSoundVControl(origin, -1, CHAN_AUTO, sfx, volume);
-	}
-
-	if (sfx2)      // distant sounds for weapons with a broadcast fire sound (so you /always/ hear dynamite explosions)
+	if (hitImpact.sfx2)          // distant sounds for weapons with a broadcast fire sound (so you /always/ hear dynamite explosions)
 	{
 		vec3_t porg, gorg, norm;    // player/gun origin
 		float  gdist;
@@ -5884,46 +5755,46 @@ void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir,
 
 		if (gdist > 1200 && gdist < 8000)      // 1200 is max cam shakey dist (2*600) use gorg as the new sound origin
 		{
-			VectorMA(cg.refdef_current->vieworg, sfx2range, norm, gorg);   // non-distance falloff makes more sense; sfx2range was gdist*0.2
+			VectorMA(cg.refdef_current->vieworg, hitImpact.sfx2range, norm, gorg);           // non-distance falloff makes more sense; sfx2range was gdist*0.2
 			// sfx2range is variable to give us minimum volume control different explosion sizes (see mortar, panzerfaust, and grenade)
-			trap_S_StartSoundEx(gorg, -1, CHAN_WEAPON, sfx2, SND_NOCUT);
+			trap_S_StartSoundEx(gorg, -1, CHAN_WEAPON, hitImpact.sfx2, SND_NOCUT);
 		}
 	}
 
-	if (mod)
+	if (hitImpact.mod)
 	{
 		localEntity_t *le;
 
-		le = CG_MakeExplosion(origin, dir, mod, shader, duration, isSprite);
+		le = CG_MakeExplosion(origin, dir, hitImpact.mod, hitImpact.shader, hitImpact.duration, hitImpact.isSprite);
 
-		le->light = light;
-		VectorCopy(lightColor, le->lightColor);
+		le->light = hitImpact.light;
+		VectorCopy(hitImpact.lightColor, le->lightColor);
 	}
 
-	if (markDuration) // markDuration = cg_markTime.integer * x
+	if (hitImpact.markDuration)     // markDuration = cg_markTime.integer * x
 	{
 		vec4_t projection;
 
 		// omnidirectional explosion marks
-		if (mark == cgs.media.burnMarkShader)
+		if (hitImpact.mark == cgs.media.burnMarkShader)
 		{
 			VectorSet(projection, 0, 0, -1);
-			projection[3] = radius;
+			projection[3] = hitImpact.radius;
 
-			trap_R_ProjectDecal(mark, 1, (vec3_t *) origin, projection, colorWhite, markDuration, (markDuration >> 4));
+			trap_R_ProjectDecal(hitImpact.mark, 1, (vec3_t *) origin, projection, colorWhite, hitImpact.markDuration, (hitImpact.markDuration >> 4));
 		}
-		else if (mark)
+		else if (hitImpact.mark)
 		{
 			vec3_t markOrigin;
 
 			VectorSubtract(vec3_origin, dir, projection);
-			projection[3] = radius * 32;
+			projection[3] = hitImpact.radius * 32;
 			VectorMA(origin, -16.0f, projection, markOrigin);
 			// jitter markorigin a bit so they don't end up on an ordered grid
 			markOrigin[0] += (random() - 0.5f);
 			markOrigin[1] += (random() - 0.5f);
 			markOrigin[2] += (random() - 0.5f);
-			CG_ImpactMark(mark, markOrigin, projection, radius, random() * 360.0f, 1.0f, 1.0f, 1.0f, 1.0f, markDuration);
+			CG_ImpactMark(hitImpact.mark, markOrigin, projection, hitImpact.radius, random() * 360.0f, 1.0f, 1.0f, 1.0f, 1.0f, hitImpact.markDuration);
 		}
 	}
 }
