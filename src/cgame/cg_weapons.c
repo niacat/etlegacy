@@ -5415,7 +5415,6 @@ void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_
 
 	hitImpact->shader        = cgs.media.rocketExplosionShader;    // copied from RL
 	hitImpact->sfx2range     = 400;
-	hitImpact->mark          = cgs.media.burnMarkShader;
 	hitImpact->markDuration  = cg_markTime.integer * 3;
 	hitImpact->radius        = 64;
 	hitImpact->light         = 300;
