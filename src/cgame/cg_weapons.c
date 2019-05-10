@@ -1272,12 +1272,15 @@ static qboolean CG_RW_ParseImpactSound(int handle, weaponInfo_t *weaponInfo)
 
 			for (i = 0; i < token.intvalue && i < MAX_IMPACT_SOUNDS ; i++)
 			{
-				weaponInfo->impactSound[impactSurface][i] = trap_S_RegisterSound(va("%s%i", filename, i + 1), qfalse);
+                            weaponInfo->impactSound[impactSurface].sounds[i] = trap_S_RegisterSound(va("%s%i", filename, i + 1), qfalse);
 			}
+                        
+                        weaponInfo->impactSound[impactSurface].count = i;
 		}
 		else    // assume only one file sound must be register
 		{
-			weaponInfo->impactSound[impactSurface][0] = trap_S_RegisterSound(token.string, qfalse);
+                    weaponInfo->impactSound[impactSurface].count = 1;
+                    weaponInfo->impactSound[impactSurface].sounds[0] = trap_S_RegisterSound(token.string, qfalse);
 		}
 	}
 
@@ -5338,21 +5341,13 @@ void CG_WaterRipple(qhandle_t shader, vec3_t loc, vec3_t dir, int size, int life
  */
 static sfxHandle_t CG_GetRandomImpactSound(int weapon, impactSurface_t surf)
 {
-	int c;
+        int c = cg_weapons[weapon].impactSound[surf].count;
 
-	for (c = 0; c < MAX_IMPACT_SOUNDS; c++)
-	{
-		if (!cg_weapons[weapon].impactSound[surf][c])
-		{
-			break;
-		}
-	}
-
-	if (c > 0)
+	if (c)
 	{
 		c = rand() % c;
 
-		return cg_weapons[weapon].impactSound[surf][c];
+                return cg_weapons[weapon].impactSound[surf].sounds[c];
 	}
 
 	return 0;

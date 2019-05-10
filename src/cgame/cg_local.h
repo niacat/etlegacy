@@ -755,6 +755,17 @@ typedef struct weaponModel_s
 #define MAX_IMPACT_SOUNDS   5
 
 /**
+ * @struct impactSounds_s
+ * @typedef impactSounds_t
+ * @brief
+ */
+typedef struct impactSounds_s
+{
+    int count;
+    sfxHandle_t sounds[MAX_IMPACT_SOUNDS];
+}impactSounds_t;
+
+/**
  * @struct weaponInfo_s
  * @typedef weaponInfo_t
  * @brief each WP_* weapon enum has an associated weaponInfo_t
@@ -817,7 +828,7 @@ typedef struct weaponInfo_s
 	int impactSoundVolume;
 	float impactMarkRadius;
 	sfxHandle_t impactMark[W_MAX_IMPACTS];
-	sfxHandle_t impactSound[W_MAX_IMPACTS][MAX_IMPACT_SOUNDS];
+	impactSounds_t impactSound[W_MAX_IMPACTS];
 	void (*impactFunc)(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
 } weaponInfo_t;
 
