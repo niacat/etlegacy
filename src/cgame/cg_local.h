@@ -704,13 +704,13 @@ typedef enum impactSurface_s
 {
 	W_IMPACT_DEFAULT = 0,  ///< default sound in case of no sound for hit surface sound
 	W_IMPACT_FAR,          ///< used sound when player is far from the impact origin
-        W_IMPACT_METAL,
+	W_IMPACT_METAL,
 	W_IMPACT_WOOD,
-        W_IMPACT_GRASS,
+	W_IMPACT_GRASS,
 	W_IMPACT_GRAVEL,
 	W_IMPACT_GLASS,
 	W_IMPACT_SNOW,
-        W_IMPACT_ROOF,
+	W_IMPACT_ROOF,
 	W_IMPACT_WATER,
 	W_IMPACT_FLESH,
 	W_MAX_IMPACTS
@@ -753,20 +753,6 @@ typedef struct weaponModel_s
 } weaponModel_t;
 
 #define MAX_IMPACT_SOUNDS   5
-
-/**
- * @struct hitImpact_s
- * @typedef hitImpact_t
- * @brief
- */
-typedef struct hitImpact_s
-{
-    qhandle_t mod, mark, shader;
-    sfxHandle_t sfx, sfx2;
-    int markDuration, volume;
-    float radius, sfx2range;
-    
-} hitImpact_t;
 
 /**
  * @struct weaponInfo_s
@@ -827,9 +813,12 @@ typedef struct weaponInfo_s
 	sfxHandle_t switchSound;
 	sfxHandle_t noAmmoSound;
 
+	int impactSoundRange;
+	int impactSoundVolume;
+	float impactMarkRadius;
 	sfxHandle_t impactMark[W_MAX_IMPACTS];
 	sfxHandle_t impactSound[W_MAX_IMPACTS][MAX_IMPACT_SOUNDS];
-	void (*impactFunc)(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t* hitImpact);
+	void (*impactFunc)(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
 } weaponInfo_t;
 
 #define MAX_VIEWDAMAGE  8

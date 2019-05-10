@@ -39,8 +39,10 @@ weaponDef
 		
 		//modModel 1		""
                 
+                impactSoundRange  400
                 impactFunction    "SmallExplosionImpact"  // supports "MeleeImpact", "BulletImpact", "SmallExplosionImpact", "BigExplosionImpact", "MapMortarImpact" and "DynamiteExplosionImpact"
-                
+                impactSoundVolume 127
+                impactMarkRadius  64
                 impactMark {                    // each surface supports up to 1 marks shader. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
                     default "gfx/damage/burn_med_mrk"
                 }

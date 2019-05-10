@@ -1339,12 +1339,12 @@ static qboolean CG_RW_ParseImpactMark(int handle, weaponInfo_t *weaponInfo)
 
 typedef struct hitImpact_s hitImpact_t;
 
-void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
-void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
-void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
-void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
-void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
-void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact);
+void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
+void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
+void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
+void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
+void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
+void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
 
 /**
  * @brief CG_RW_ParseClient
@@ -1728,6 +1728,27 @@ static qboolean CG_RW_ParseClient(int handle, weaponInfo_t *weaponInfo)
 			if (!PC_Vec_Parse(handle, &weaponInfo->ejectBrassOffset))
 			{
 				return CG_RW_ParseError(handle, "expected ejectBrassOffset as foward left up");
+			}
+		}
+		else if (!Q_stricmp(token.string, "impactSoundRange"))
+		{
+			if (!PC_Int_Parse(handle, &weaponInfo->impactSoundRange))
+			{
+				return CG_RW_ParseError(handle, "expected impactSoundRange value");
+			}
+		}
+		else if (!Q_stricmp(token.string, "impactSoundVolume"))
+		{
+			if (!PC_Int_Parse(handle, &weaponInfo->impactSoundVolume))
+			{
+				return CG_RW_ParseError(handle, "expected impactSoundVolume value");
+			}
+		}
+		else if (!Q_stricmp(token.string, "impactMarkRadius"))
+		{
+			if (!PC_Float_Parse(handle, &weaponInfo->impactMarkRadius))
+			{
+				return CG_RW_ParseError(handle, "expected impactMarkRadius value");
 			}
 		}
 		else if (!Q_stricmp(token.string, "impactFunction"))
@@ -5319,7 +5340,13 @@ static sfxHandle_t CG_GetRandomImpactSound(int weapon, impactSurface_t surf)
 {
 	int c;
 
-	c = sizeof(cg_weapons[weapon].impactSound[surf]) / sizeof(cg_weapons[weapon].impactSound[surf][0]);
+	for (c = 0; c < MAX_IMPACT_SOUNDS; c++)
+	{
+		if (!cg_weapons[weapon].impactSound[surf][c])
+		{
+			break;
+		}
+	}
 
 	if (c > 0)
 	{
@@ -5331,21 +5358,21 @@ static sfxHandle_t CG_GetRandomImpactSound(int weapon, impactSurface_t surf)
 	return 0;
 }
 
-void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
+void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
 {
 	if (!hitFlesh)
 	{
-		hitImpact->radius = 1 + rand() % 2;
+		*radius = 1 + rand() % 2;
 
 		CG_AddBulletParticles(origin, dir, 20, 800, 3 + rand() % 6, 1.0f);
 	}
 
-	hitImpact->markDuration = cg_markTime.integer;
+	*markDuration = cg_markTime.integer;
 }
 
-void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
+void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
 {
-	hitImpact->volume = 64;
+	*markDuration = -1;
 
 	if (missileEffect == PS_FX_NONE)
 	{
@@ -5389,10 +5416,10 @@ void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, i
 		{
 			// mark and sound can potentially use the surface for override values
 			//mark   = cgs.media.bulletMarkShader;    // default
-			hitImpact->radius = 1.0f + 0.5f * (rand() % 2);
+			*radius = 1.0f + 0.5f * (rand() % 2);
 
 			// set mark duration
-			hitImpact->markDuration = cg_markTime.integer;
+			*markDuration = cg_markTime.integer;
 		}
 	}
 	else if (missileEffect == PS_FX_WATER)
@@ -5409,14 +5436,12 @@ void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, i
 	}
 }
 
-void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
+void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
 {
 	trace_t trace;
 	vec3_t  tmpv;
 
-	hitImpact->sfx2range    = 400;
-	hitImpact->markDuration = cg_markTime.integer * 3;
-	hitImpact->radius       = 64;
+	*markDuration = cg_markTime.integer * 3;
 
 	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
 	{
@@ -5452,14 +5477,12 @@ void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_
 	}
 }
 
-void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
+void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
 {
 	trace_t trace;
 	vec3_t  tmpv;
 
-	hitImpact->sfx2range    = 800;
-	hitImpact->markDuration = cg_markTime.integer * 3;
-	hitImpact->radius       = 128; // bigger mark radius
+	*markDuration = cg_markTime.integer * 3;
 
 	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
 	{
@@ -5511,14 +5534,12 @@ void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t 
 	}
 }
 
-void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
+void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
 {
 	trace_t trace;
 	vec3_t  tmpv;
 
-	hitImpact->sfx2range    = 1200;
-	hitImpact->markDuration = cg_markTime.integer * 3;
-	hitImpact->radius       = 96;  //  bigger mark radius
+	*markDuration = cg_markTime.integer * 3;
 
 	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
 	{
@@ -5564,14 +5585,12 @@ void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir
 	}
 }
 
-void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, hitImpact_t *hitImpact)
+void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
 {
 	trace_t trace;
 	vec3_t  tmpv;
 
-	hitImpact->sfx2range    = 400;
-	hitImpact->markDuration = cg_markTime.integer * 3;
-	hitImpact->radius       = 128;  // bigger mark radius
+	*markDuration = cg_markTime.integer * 3;
 
 	// biggie dynamite explosions that mean it -- dynamite is biggest explode, so it gets extra crap thrown on
 	// check for water/dirt spurt
@@ -5631,18 +5650,6 @@ void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, ve
 }
 
 /**
- * @brief CG_HitImpactInit
- * @param[in,out] hitImpact
- */
-void CG_HitImpactInit(hitImpact_t *hitImpact)
-{
-	Com_Memset(hitImpact, 0, sizeof(hitImpact_t));
-	hitImpact->markDuration = -1;   // keep -1 markDuration for temporary marks
-	hitImpact->volume       = 127;
-	hitImpact->radius       = 32;
-}
-
-/**
  * @brief Caused by an EV_MISSILE_MISS event, or directly by local bullet tracing
  * @param[in] weapon
  * @param[in] missileEffect used to define what sort of effect to spawn
@@ -5653,17 +5660,16 @@ void CG_HitImpactInit(hitImpact_t *hitImpact)
 void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh)     // modified to send missilehitwall surface parameters
 {
 	impactSurface_t impactSurfaceIndex = W_IMPACT_DEFAULT;
-	hitImpact_t     hitImpact;
+	qhandle_t       mark;
+	sfxHandle_t     sfx, sfx2;
+	int             markDuration;
+	float           radius;
 
-        // no impact 
+	// no impact
 	if (!cg_weapons[weapon].impactFunc)
 	{
 		return;
 	}
-        
-        CG_HitImpactInit(&hitImpact);
-        
-        cg_weapons[weapon].impactFunc(weapon, missileEffect, origin, dir, surfFlags, hitFlesh, &hitImpact);
 
 	if (surfFlags)
 	{
@@ -5697,24 +5703,32 @@ void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir,
 		impactSurfaceIndex = W_IMPACT_FLESH;
 	}
 
-	hitImpact.sfx  = CG_GetRandomImpactSound(weapon, impactSurfaceIndex);
-	hitImpact.mark = cg_weapons[weapon].impactMark[impactSurfaceIndex];
+	sfx    = CG_GetRandomImpactSound(weapon, impactSurfaceIndex);
+	sfx2   = CG_GetRandomImpactSound(weapon, W_IMPACT_FAR);
+	mark   = cg_weapons[weapon].impactMark[impactSurfaceIndex];
+	radius = cg_weapons[weapon].impactMarkRadius;
 
-	// no sfx found for given surface, force using default one if exist
-	if (!hitImpact.sfx)
+	cg_weapons[weapon].impactFunc(weapon, missileEffect, origin, dir, surfFlags, hitFlesh, &radius, &markDuration);
+
+	// no sound found for given surface, force using default one if exist
+	if (!sfx)
 	{
-		hitImpact.sfx  = CG_GetRandomImpactSound(weapon, W_IMPACT_DEFAULT);
-		hitImpact.mark = cg_weapons[weapon].impactMark[W_IMPACT_DEFAULT];
+		sfx = CG_GetRandomImpactSound(weapon, W_IMPACT_DEFAULT);
 	}
 
-	hitImpact.sfx2 = CG_GetRandomImpactSound(weapon, W_IMPACT_FAR);
-
-	if (hitImpact.sfx)
+	// no mark found for given surface, force using default one if exist
+	if (!mark)
 	{
-		trap_S_StartSoundVControl(origin, -1, CHAN_AUTO, hitImpact.sfx, hitImpact.volume);
+		mark = cg_weapons[weapon].impactMark[W_IMPACT_DEFAULT];
 	}
 
-	if (hitImpact.sfx2)          // distant sounds for weapons with a broadcast fire sound (so you /always/ hear dynamite explosions)
+	if (sfx)
+	{
+		trap_S_StartSoundVControl(origin, -1, CHAN_AUTO, sfx, cg_weapons[weapon].impactSoundVolume);
+	}
+
+	// distant sounds for weapons with a broadcast fire sound (so you /always/ hear dynamite explosions)
+	if (sfx2)
 	{
 		vec3_t porg, gorg, norm;    // player/gun origin
 		float  gdist;
@@ -5726,36 +5740,37 @@ void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir,
 
 		if (gdist > 1200 && gdist < 8000)      // 1200 is max cam shakey dist (2*600) use gorg as the new sound origin
 		{
-			VectorMA(cg.refdef_current->vieworg, hitImpact.sfx2range, norm, gorg);           // non-distance falloff makes more sense; sfx2range was gdist*0.2
+			VectorMA(cg.refdef_current->vieworg, cg_weapons[weapon].impactSoundRange, norm, gorg);           // non-distance falloff makes more sense; sfx2range was gdist*0.2
 			// sfx2range is variable to give us minimum volume control different explosion sizes (see mortar, panzerfaust, and grenade)
-			trap_S_StartSoundEx(gorg, -1, CHAN_WEAPON, hitImpact.sfx2, SND_NOCUT);
+			trap_S_StartSoundEx(gorg, -1, CHAN_WEAPON, sfx2, SND_NOCUT);
 		}
 	}
 
-	if (hitImpact.markDuration)     // markDuration = cg_markTime.integer * x
+	// markDuration = cg_markTime.integer * x
+	if (markDuration)
 	{
 		vec4_t projection;
 
 		// omnidirectional explosion marks
-		if (hitImpact.mark == cgs.media.burnMarkShader)
+		if (mark == cgs.media.burnMarkShader)
 		{
 			VectorSet(projection, 0, 0, -1);
-			projection[3] = hitImpact.radius;
+			projection[3] = radius;
 
-			trap_R_ProjectDecal(hitImpact.mark, 1, (vec3_t *) origin, projection, colorWhite, hitImpact.markDuration, (hitImpact.markDuration >> 4));
+			trap_R_ProjectDecal(mark, 1, (vec3_t *) origin, projection, colorWhite, markDuration, (markDuration >> 4));
 		}
-		else if (hitImpact.mark)
+		else if (mark)
 		{
 			vec3_t markOrigin;
 
 			VectorSubtract(vec3_origin, dir, projection);
-			projection[3] = hitImpact.radius * 32;
+			projection[3] = radius * 32;
 			VectorMA(origin, -16.0f, projection, markOrigin);
 			// jitter markorigin a bit so they don't end up on an ordered grid
 			markOrigin[0] += (random() - 0.5f);
 			markOrigin[1] += (random() - 0.5f);
 			markOrigin[2] += (random() - 0.5f);
-			CG_ImpactMark(hitImpact.mark, markOrigin, projection, hitImpact.radius, random() * 360.0f, 1.0f, 1.0f, 1.0f, 1.0f, hitImpact.markDuration);
+			CG_ImpactMark(mark, markOrigin, projection, radius, random() * 360.0f, 1.0f, 1.0f, 1.0f, 1.0f, markDuration);
 		}
 	}
 }

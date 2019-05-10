@@ -11,7 +11,10 @@ weaponDef
 		missileTrailFunc	"GrenadeTrail"                               // supports "GrenadeTrail", "RocketTrail", "PyroSmokeTrail" and "DynamiteTrail" (we REALLY want a particle system for this)
 		missileDlightColor	1 0.7 0.5
                 
+                impactSoundRange 1200
                 impactFunction    "MapMortarImpact" // supports "MeleeImpact", "BulletImpact", "SmallExplosionImpact", "BigExplosionImpact", "MapMortarImpact" and "DynamiteExplosionImpact"
+                impactSoundVolume 127
+                impactMarkRadius  96
                 impactSound {                       // each surface supports up to 5 hits sounds. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
                 
                     default "sound/weapons/rocket/rocket_expl.wav"

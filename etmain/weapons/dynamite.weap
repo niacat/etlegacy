@@ -44,7 +44,10 @@ weaponDef
 		
 		//modModel 1		""
 		
-                impactFunction    "DynamiteExplosionImpact" // supports "MeleeImpact", "BulletImpact", "SmallExplosionImpact", "BigExplosionImpact", "MapMortarImpact" and "DynamiteExplosionImpact"
+                impactSoundRange 400
+                impactFunction   "DynamiteExplosionImpact" // supports "MeleeImpact", "BulletImpact", "SmallExplosionImpact", "BigExplosionImpact", "MapMortarImpact" and "DynamiteExplosionImpact"
+                impactSoundVolume 127
+                impactMarkRadius  128
                 impactSound {                       // each surface supports up to 5 hits sounds. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
                 
                     default "sound/weapons/dynamite/dynamite_expl.wav"
