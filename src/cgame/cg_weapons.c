@@ -5397,14 +5397,15 @@ void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, i
 	}
 	else if (missileEffect == PS_FX_WATER)
 	{
+		localEntity_t *le;
+
 		// needed to do the CG_WaterRipple using a localent since I needed the timer reset on the shader for each shot
 		CG_WaterRipple(cgs.media.wakeMarkShaderAnim, origin, tv(0, 0, 1), 32, 1000);
 		CG_AddDirtBulletParticles(origin, dir, 190, 900, 5, 0.5f, 80, 16, 0.125f, cgs.media.dirtParticle2Shader);
 
 		// play a water splash
-		hitImpact->mod      = cgs.media.waterSplashModel;
-		hitImpact->shader   = cgs.media.waterSplashShader;
-		hitImpact->duration = 250;
+		le = CG_MakeExplosion(origin, dir, cgs.media.waterSplashModel, cgs.media.waterSplashShader, 250, qfalse);
+		VectorSet(le->lightColor, 1, 1, 0);
 	}
 }
 
@@ -5413,16 +5414,9 @@ void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_
 	trace_t trace;
 	vec3_t  tmpv;
 
-	hitImpact->shader        = cgs.media.rocketExplosionShader;    // copied from RL
-	hitImpact->sfx2range     = 400;
-	hitImpact->markDuration  = cg_markTime.integer * 3;
-	hitImpact->radius        = 64;
-	hitImpact->light         = 300;
-	hitImpact->isSprite      = qtrue;
-	hitImpact->duration      = 1000;
-	hitImpact->lightColor[0] = 0.75f;
-	hitImpact->lightColor[1] = 0.5f;
-	hitImpact->lightColor[2] = 0.1f;
+	hitImpact->sfx2range    = 400;
+	hitImpact->markDuration = cg_markTime.integer * 3;
+	hitImpact->radius       = 64;
 
 	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
 	{
@@ -5466,13 +5460,6 @@ void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t 
 	hitImpact->sfx2range    = 800;
 	hitImpact->markDuration = cg_markTime.integer * 3;
 	hitImpact->radius       = 128; // bigger mark radius
-	hitImpact->light        = 600;
-	hitImpact->isSprite     = qtrue;
-	hitImpact->duration     = 1000;
-	// changed to flamethrower colors
-	hitImpact->lightColor[0] = 0.75f;
-	hitImpact->lightColor[1] = 0.5f;
-	hitImpact->lightColor[2] = 0.1f;
 
 	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
 	{
@@ -5529,15 +5516,9 @@ void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir
 	trace_t trace;
 	vec3_t  tmpv;
 
-	hitImpact->sfx2range     = 1200;
-	hitImpact->markDuration  = cg_markTime.integer * 3;
-	hitImpact->radius        = 96; //  bigger mark radius
-	hitImpact->light         = 300;
-	hitImpact->isSprite      = qtrue;
-	hitImpact->duration      = 1000;
-	hitImpact->lightColor[0] = 0.75f;
-	hitImpact->lightColor[1] = 0.5f;
-	hitImpact->lightColor[2] = 0.1f;
+	hitImpact->sfx2range    = 1200;
+	hitImpact->markDuration = cg_markTime.integer * 3;
+	hitImpact->radius       = 96;  //  bigger mark radius
 
 	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
 	{
@@ -5588,16 +5569,9 @@ void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, ve
 	trace_t trace;
 	vec3_t  tmpv;
 
-	hitImpact->shader        = cgs.media.rocketExplosionShader;
-	hitImpact->sfx2range     = 400;
-	hitImpact->markDuration  = cg_markTime.integer * 3;
-	hitImpact->radius        = 128; // bigger mark radius
-	hitImpact->light         = 300;
-	hitImpact->isSprite      = qtrue;
-	hitImpact->duration      = 1000;
-	hitImpact->lightColor[0] = 0.75f;
-	hitImpact->lightColor[1] = 0.5f;
-	hitImpact->lightColor[2] = 0.1f;
+	hitImpact->sfx2range    = 400;
+	hitImpact->markDuration = cg_markTime.integer * 3;
+	hitImpact->radius       = 128;  // bigger mark radius
 
 	// biggie dynamite explosions that mean it -- dynamite is biggest explode, so it gets extra crap thrown on
 	// check for water/dirt spurt
@@ -5663,12 +5637,9 @@ void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, ve
 void CG_HitImpactInit(hitImpact_t *hitImpact)
 {
 	Com_Memset(hitImpact, 0, sizeof(hitImpact_t));
-	hitImpact->duration     = 600;
 	hitImpact->markDuration = -1;   // keep -1 markDuration for temporary marks
 	hitImpact->volume       = 127;
 	hitImpact->radius       = 32;
-
-	VectorSet(hitImpact->lightColor, 1, 1, 0);
 }
 
 /**
@@ -5684,14 +5655,15 @@ void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir,
 	impactSurface_t impactSurfaceIndex = W_IMPACT_DEFAULT;
 	hitImpact_t     hitImpact;
 
-	CG_HitImpactInit(&hitImpact);
-
-	cg_weapons[weapon].impactFunc(weapon, missileEffect, origin, dir, surfFlags, hitFlesh, &hitImpact);
-
+        // no impact 
 	if (!cg_weapons[weapon].impactFunc)
 	{
 		return;
 	}
+        
+        CG_HitImpactInit(&hitImpact);
+        
+        cg_weapons[weapon].impactFunc(weapon, missileEffect, origin, dir, surfFlags, hitFlesh, &hitImpact);
 
 	if (surfFlags)
 	{
@@ -5720,7 +5692,7 @@ void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir,
 			impactSurfaceIndex = W_IMPACT_WATER;
 		}
 	}
-	else if (hitFlesh)      // melee only
+	else if (hitFlesh)
 	{
 		impactSurfaceIndex = W_IMPACT_FLESH;
 	}
@@ -5758,16 +5730,6 @@ void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir,
 			// sfx2range is variable to give us minimum volume control different explosion sizes (see mortar, panzerfaust, and grenade)
 			trap_S_StartSoundEx(gorg, -1, CHAN_WEAPON, hitImpact.sfx2, SND_NOCUT);
 		}
-	}
-
-	if (hitImpact.mod)
-	{
-		localEntity_t *le;
-
-		le = CG_MakeExplosion(origin, dir, hitImpact.mod, hitImpact.shader, hitImpact.duration, hitImpact.isSprite);
-
-		le->light = hitImpact.light;
-		VectorCopy(hitImpact.lightColor, le->lightColor);
 	}
 
 	if (hitImpact.markDuration)     // markDuration = cg_markTime.integer * x

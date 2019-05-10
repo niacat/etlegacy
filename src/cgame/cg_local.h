@@ -763,10 +763,8 @@ typedef struct hitImpact_s
 {
     qhandle_t mod, mark, shader;
     sfxHandle_t sfx, sfx2;
-    qboolean isSprite;
-    int duration, markDuration, volume;
-    vec3_t lightColor;
-    float radius, light, sfx2range;
+    int markDuration, volume;
+    float radius, sfx2range;
     
 } hitImpact_t;
 
@@ -1558,7 +1556,7 @@ typedef struct
 	qhandle_t thirdPersonBinocModel;
 
 	// weapon effect shaders
-	qhandle_t rocketExplosionShader;
+	//qhandle_t rocketExplosionShader;
 
 	qhandle_t bloodCloudShader;
 	qhandle_t sparkParticleShader;

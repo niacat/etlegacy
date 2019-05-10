@@ -1882,7 +1882,7 @@ static void CG_RegisterGraphics(void)
 	}
 
 	// cgs.media.grenadeExplosionShader = trap_R_RegisterShader("grenadeExplosion"); // unused FIXME: remove from shader def
-	cgs.media.rocketExplosionShader = trap_R_RegisterShader("rocketExplosion");
+	// cgs.media.rocketExplosionShader = trap_R_RegisterShader("rocketExplosion");   // unused  
 
 	cgs.media.hWeaponSnd     = trap_S_RegisterSound("sound/weapons/mg42/mg42_fire.wav", qfalse);
 	cgs.media.hWeaponEchoSnd = trap_S_RegisterSound("sound/weapons/mg42/mg42_far.wav", qfalse);
