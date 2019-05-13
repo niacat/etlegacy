@@ -1441,11 +1441,6 @@ static void CG_RegisterSounds(void)
 
 	cgs.media.sfx_rockexp = trap_S_RegisterSound("sound/weapons/rocket/rocket_expl.wav", qfalse);
 
-	cgs.media.sfx_mortarexp[0] = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl1.wav", qfalse);
-	cgs.media.sfx_mortarexp[1] = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl2.wav", qfalse);
-	cgs.media.sfx_mortarexp[2] = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl3.wav", qfalse);
-	cgs.media.sfx_mortarexp[3] = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl.wav", qfalse);
-
 	for (i = 0; i < 3; i++)
 	{
 		// bouncy shell sounds \o/

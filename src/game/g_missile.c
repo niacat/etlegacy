@@ -255,7 +255,6 @@ void G_MissileImpact(gentity_t *ent, trace_t *trace, int impactDamage)
 
 	if (CHECKBITWISE(GetWeaponTableData(ent->s.weapon)->type, WEAPON_TYPE_MORTAR | WEAPON_TYPE_SET))
 	{
-		temp->s.legsAnim = ent->s.legsAnim; // need this one as well
 		temp->r.svFlags |= SVF_BROADCAST;
 	}
 
@@ -600,7 +599,6 @@ void G_RunMissile(gentity_t *ent)
 				tent->r.svFlags  |= SVF_BROADCAST;
 
 				ent->count2     = 2;
-				ent->s.legsAnim = 1;
 
 				/*{
 				    gentity_t *tent;

@@ -44,6 +44,12 @@ weaponDef
                 impactMarkRadius  64
                 impactFunction    "SmallExplosionImpact"  // supports "MeleeImpact", "BulletImpact", "SmallExplosionImpact", "BigExplosionImpact", "MapMortarImpact" and "DynamiteExplosionImpact"
                 
+                impactSound {
+                    default 4 "sound/weapons/mortar/mortar_expl"
+                    far       "sound/weapons/mortar/mortar_expl_far.wav"
+                    water     "sound/weapons/grenade/gren_expl_water.wav"
+                }
+
                 impactMark {                    // each surface supports up to 1 marks shader. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
                     default "gfx/damage/burn_med_mrk"
                 }

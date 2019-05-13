@@ -1754,36 +1754,14 @@ void CG_Debris(centity_t *cent, vec3_t origin, vec3_t dir)
  * @brief CG_MortarImpact
  * @param[in] cent
  * @param[in] origin
- * @param[in] sfx
- * @param[in] dist
  */
-void CG_MortarImpact(centity_t *cent, vec3_t origin, int sfx, qboolean dist)
+void CG_MortarImpact(centity_t *cent, vec3_t origin)
 {
-	if (sfx >= 0)
+	if (cent->currentState.clientNum == cg.snap->ps.clientNum && cg.mortarImpactTime != -2)
 	{
-		trap_S_StartSound(origin, -1, CHAN_AUTO, cgs.media.sfx_mortarexp[sfx]);
-	}
-
-	if (dist)
-	{
-		vec3_t gorg, norm;
-		float  gdist;
-
-		VectorSubtract(origin, cg.refdef_current->vieworg, norm);
-		gdist = VectorNormalize(norm);
-		if (gdist > 1200 && gdist < 8000)      // 1200 is max cam shakey dist (2*600) use gorg as the new sound origin
-		{
-			VectorMA(cg.refdef_current->vieworg, 800, norm, gorg);     // non-distance falloff makes more sense; sfx2range was gdist*0.2
-			// sfx2range is variable to give us minimum volume control different explosion sizes (see mortar, panzerfaust, and grenade)
-			trap_S_StartSoundEx(gorg, -1, CHAN_WEAPON, cgs.media.sfx_mortarexpDist, SND_NOCUT);
-		}
-
-		if (cent->currentState.clientNum == cg.snap->ps.clientNum && cg.mortarImpactTime != -2)
-		{
-			VectorCopy(origin, cg.mortarImpactPos);
-			cg.mortarImpactTime     = cg.time;
-			cg.mortarImpactOutOfMap = qfalse;
-		}
+		VectorCopy(origin, cg.mortarImpactPos);
+		cg.mortarImpactTime     = cg.time;
+		cg.mortarImpactOutOfMap = qfalse;
 	}
 }
 
@@ -2242,17 +2220,6 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 
 		ByteToDir(es->eventParm, dir);
 		CG_MissileHitPlayer(cent, es->weapon, position, dir, es->otherEntityNum);
-		if (CHECKBITWISE(GetWeaponTableData(es->weapon)->type, WEAPON_TYPE_MORTAR | WEAPON_TYPE_SET))
-		{
-			if (!es->legsAnim)
-			{
-				CG_MortarImpact(cent, position, 3, qtrue);
-			}
-			else
-			{
-				CG_MortarImpact(cent, position, -1, qtrue);
-			}
-		}
 	}
 	break;
 	case EV_MISSILE_MISS_SMALL:
@@ -2273,17 +2240,6 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 
 		ByteToDir(es->eventParm, dir);
 		CG_MissileHitWall(es->weapon, effect, position, dir, 0);
-		if (CHECKBITWISE(GetWeaponTableData(es->weapon)->type, WEAPON_TYPE_MORTAR | WEAPON_TYPE_SET))
-		{
-			if (!es->legsAnim)
-			{
-				CG_MortarImpact(cent, position, 3, qtrue);
-			}
-			else
-			{
-				CG_MortarImpact(cent, position, -1, qtrue);
-			}
-		}
 	}
 	break;
 	case EV_MISSILE_MISS_LARGE:
@@ -2305,7 +2261,7 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 	}
 	break;
 	case EV_MORTAR_IMPACT:
-		CG_MortarImpact(cent, position, rand() % 3, qfalse);
+		CG_MortarImpact(cent, position);
 		break;
 	case EV_MORTAR_MISS:
 		CG_MortarMiss(cent, position);

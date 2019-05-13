@@ -1585,8 +1585,6 @@ typedef struct
 
 	sfxHandle_t footsteps[FOOTSTEP_TOTAL][4];
 	sfxHandle_t sfx_rockexp;
-	sfxHandle_t sfx_mortarexp[4];
-	sfxHandle_t sfx_mortarexpDist;
 	sfxHandle_t sfx_brassSound[BRASSSOUND_MAX][3][2];
 	sfxHandle_t sfx_rubbleBounce[3];
 
