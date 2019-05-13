@@ -1272,15 +1272,15 @@ static qboolean CG_RW_ParseImpactSound(int handle, weaponInfo_t *weaponInfo)
 
 			for (i = 0; i < token.intvalue && i < MAX_IMPACT_SOUNDS ; i++)
 			{
-                            weaponInfo->impactSound[impactSurface].sounds[i] = trap_S_RegisterSound(va("%s%i", filename, i + 1), qfalse);
+				weaponInfo->impactSound[impactSurface].sounds[i] = trap_S_RegisterSound(va("%s%i", filename, i + 1), qfalse);
 			}
-                        
-                        weaponInfo->impactSound[impactSurface].count = i;
+
+			weaponInfo->impactSound[impactSurface].count = i;
 		}
 		else    // assume only one file sound must be register
 		{
-                    weaponInfo->impactSound[impactSurface].count = 1;
-                    weaponInfo->impactSound[impactSurface].sounds[0] = trap_S_RegisterSound(token.string, qfalse);
+			weaponInfo->impactSound[impactSurface].count     = 1;
+			weaponInfo->impactSound[impactSurface].sounds[0] = trap_S_RegisterSound(token.string, qfalse);
 		}
 	}
 
@@ -5341,13 +5341,13 @@ void CG_WaterRipple(qhandle_t shader, vec3_t loc, vec3_t dir, int size, int life
  */
 static sfxHandle_t CG_GetRandomImpactSound(int weapon, impactSurface_t surf)
 {
-        int c = cg_weapons[weapon].impactSound[surf].count;
+	int c = cg_weapons[weapon].impactSound[surf].count;
 
 	if (c)
 	{
 		c = rand() % c;
 
-                return cg_weapons[weapon].impactSound[surf].sounds[c];
+		return cg_weapons[weapon].impactSound[surf].sounds[c];
 	}
 
 	return 0;
@@ -6362,11 +6362,13 @@ void CG_Bullet(vec3_t end, int sourceEntityNum, qboolean flesh, int fleshEntityN
 		if (fleshEntityNum == cg.snap->ps.clientNum)
 		{
 			//trap_S_StartSound(NULL, fleshEntityNum, CHAN_BODY, cgs.media.sfx_bullet_fleshhit[rand() % MAX_IMPACT_SOUNDS]);
-			trap_S_StartSound(NULL, fleshEntityNum, CHAN_BODY, cgs.media.sfx_bullet_stonehit[rand() % MAX_IMPACT_SOUNDS]);
+			trap_S_StartSound(NULL, fleshEntityNum, CHAN_BODY,
+			                  cg_weapons[cg.snap->ps.weapon].impactSound[W_IMPACT_DEFAULT].sounds[rand() % cg_weapons[cg.snap->ps.weapon].impactSound[W_IMPACT_DEFAULT].count]);
 		}
 		else
 		{
-			trap_S_StartSound(cg_entities[fleshEntityNum].currentState.origin, ENTITYNUM_WORLD, CHAN_BODY, cgs.media.sfx_bullet_stonehit[rand() % MAX_IMPACT_SOUNDS]);
+			trap_S_StartSound(cg_entities[fleshEntityNum].currentState.origin, ENTITYNUM_WORLD, CHAN_BODY,
+			                  cg_weapons[cg.snap->ps.weapon].impactSound[W_IMPACT_DEFAULT].sounds[rand() % cg_weapons[cg.snap->ps.weapon].impactSound[W_IMPACT_DEFAULT].count]);
 		}
 
 		// if we haven't dropped a blood spat in a while, check if this is a good scenario
@@ -6444,11 +6446,8 @@ void CG_Bullet(vec3_t end, int sourceEntityNum, qboolean flesh, int fleshEntityN
 				VectorSubtract(end, start, dist);
 				VectorMA(start, waterfraction, dist, end2);
 
-				trap_S_StartSound(end, -1, CHAN_AUTO, cgs.media.sfx_bullet_waterhit[rand() % 5]);
-
-				// WP_MP40: all bullet weapons have the same fx, and this stops pvs issues causing grenade explosions
-				CG_MissileHitWall(WP_MP40, PS_FX_WATER, end2, dir, 0, qfalse);
-				CG_MissileHitWall(WP_MP40, PS_FX_COMMON, end, trace.plane.normal, 0, qfalse);
+				CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_WATER, end2, dir, 0, qfalse);
+				CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_COMMON, end, trace.plane.normal, 0, qfalse);
 			}
 			else
 			{
@@ -6465,23 +6464,18 @@ void CG_Bullet(vec3_t end, int sourceEntityNum, qboolean flesh, int fleshEntityN
 
 				if (trace.fraction != trace2.fraction)
 				{
-					//trap_CM_BoxTrace( &trace2, start, end, NULL, NULL, -1, MASK_WATER );
-
-					trap_S_StartSound(end, -1, CHAN_AUTO, cgs.media.sfx_bullet_waterhit[rand() % 5]);
-
 					cg.bulletTrace = qtrue;
 					CG_Trace(&trace2, start, NULL, NULL, end, -1, MASK_WATER);
 					cg.bulletTrace = qfalse;
 
-					// WP_MP40: all bullet weapons have the same fx
-					CG_MissileHitWall(WP_MP40, PS_FX_WATER, trace2.endpos, trace2.plane.normal, trace2.surfaceFlags, qfalse);
+					CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_WATER, trace2.endpos, trace2.plane.normal, trace2.surfaceFlags, qfalse);
 					return;
 				}
 
 				// better bullet marks
 				VectorSubtract(vec3_origin, dir, dir);
-				// WP_MP40: all bullet weapons have the same fx
-				CG_MissileHitWall(WP_MP40, PS_FX_COMMON, trace.endpos, dir, trace.surfaceFlags, qfalse);
+
+				CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_COMMON, trace.endpos, dir, trace.surfaceFlags, qfalse);
 			}
 		}
 	}

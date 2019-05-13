@@ -1439,10 +1439,12 @@ static void CG_RegisterSounds(void)
 
 	cgs.media.boneBounceSound = trap_S_RegisterSound("sound/world/boardbreak.wav", qfalse);          // TODO: need a real sound for this
 
-	cgs.media.sfx_mortarexp[0]    = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl1.wav", qfalse);
-	cgs.media.sfx_mortarexp[1]    = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl2.wav", qfalse);
-	cgs.media.sfx_mortarexp[2]    = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl3.wav", qfalse);
-	cgs.media.sfx_mortarexp[3]    = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl.wav", qfalse);
+	cgs.media.sfx_rockexp = trap_S_RegisterSound("sound/weapons/rocket/rocket_expl.wav", qfalse);
+
+	cgs.media.sfx_mortarexp[0] = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl1.wav", qfalse);
+	cgs.media.sfx_mortarexp[1] = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl2.wav", qfalse);
+	cgs.media.sfx_mortarexp[2] = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl3.wav", qfalse);
+	cgs.media.sfx_mortarexp[3] = trap_S_RegisterSound("sound/weapons/mortar/mortar_expl.wav", qfalse);
 
 	for (i = 0; i < 3; i++)
 	{
@@ -1882,7 +1884,7 @@ static void CG_RegisterGraphics(void)
 	}
 
 	// cgs.media.grenadeExplosionShader = trap_R_RegisterShader("grenadeExplosion"); // unused FIXME: remove from shader def
-	// cgs.media.rocketExplosionShader = trap_R_RegisterShader("rocketExplosion");   // unused  
+	// cgs.media.rocketExplosionShader = trap_R_RegisterShader("rocketExplosion");   // unused
 
 	cgs.media.hWeaponSnd     = trap_S_RegisterSound("sound/weapons/mg42/mg42_fire.wav", qfalse);
 	cgs.media.hWeaponEchoSnd = trap_S_RegisterSound("sound/weapons/mg42/mg42_far.wav", qfalse);
@@ -1898,16 +1900,11 @@ static void CG_RegisterGraphics(void)
 	cgs.media.minePrimedSound = trap_S_RegisterSound("sound/weapons/landmine/mine_on.wav", qfalse);
 
 	// wall marks
-	cgs.media.bulletMarkShader   = trap_R_RegisterShaderNoMip("gfx/damage/bullet_mrk");
 	cgs.media.burnMarkShader     = trap_R_RegisterShaderNoMip("gfx/damage/burn_med_mrk");
 	cgs.media.shadowFootShader   = trap_R_RegisterShaderNoMip("markShadowFoot");
 	cgs.media.shadowTorsoShader  = trap_R_RegisterShaderNoMip("markShadowTorso");
 	cgs.media.wakeMarkShader     = trap_R_RegisterShaderNoMip("wake");
 	cgs.media.wakeMarkShaderAnim = trap_R_RegisterShaderNoMip("wakeAnim");
-
-	cgs.media.bulletMarkShaderMetal = trap_R_RegisterShaderNoMip("gfx/damage/metal_mrk");
-	cgs.media.bulletMarkShaderWood  = trap_R_RegisterShaderNoMip("gfx/damage/wood_mrk");
-	cgs.media.bulletMarkShaderGlass = trap_R_RegisterShaderNoMip("gfx/damage/glass_mrk");
 
 	for (i = 0 ; i < 5 ; i++)
 	{

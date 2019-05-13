@@ -761,8 +761,8 @@ typedef struct weaponModel_s
  */
 typedef struct impactSounds_s
 {
-    int count;
-    sfxHandle_t sounds[MAX_IMPACT_SOUNDS];
+	int count;
+	sfxHandle_t sounds[MAX_IMPACT_SOUNDS];
 }impactSounds_t;
 
 /**
@@ -1539,10 +1539,6 @@ typedef struct
 	qhandle_t wakeMarkShaderAnim;
 	qhandle_t bloodMarkShaders[5];
 	qhandle_t bloodDotShaders[5];
-	qhandle_t bulletMarkShader;
-	qhandle_t bulletMarkShaderMetal;
-	qhandle_t bulletMarkShaderWood;
-	qhandle_t bulletMarkShaderGlass;
 	qhandle_t burnMarkShader;
 
 	qhandle_t flamebarrel;
@@ -1582,12 +1578,6 @@ typedef struct
 	qhandle_t alliedUniformShader;
 	qhandle_t axisUniformShader;
 
-	sfxHandle_t sfx_artilleryExp[3];
-	sfxHandle_t sfx_artilleryDist;
-
-	sfxHandle_t sfx_airstrikeExp[3];
-	sfxHandle_t sfx_airstrikeDist;
-
 	// sounds
 	sfxHandle_t noFireUnderwater;
 	sfxHandle_t selectSound;
@@ -1595,30 +1585,11 @@ typedef struct
 
 	sfxHandle_t footsteps[FOOTSTEP_TOTAL][4];
 	sfxHandle_t sfx_rockexp;
-	sfxHandle_t sfx_rockexpDist;
-	sfxHandle_t sfx_rockexpWater;
-	sfxHandle_t sfx_satchelexp;
-	sfxHandle_t sfx_satchelexpDist;
-	sfxHandle_t sfx_landmineexp;
-	sfxHandle_t sfx_landmineexpDist;
 	sfxHandle_t sfx_mortarexp[4];
 	sfxHandle_t sfx_mortarexpDist;
-	sfxHandle_t sfx_grenexp;
-	sfxHandle_t sfx_grenexpDist;
 	sfxHandle_t sfx_brassSound[BRASSSOUND_MAX][3][2];
 	sfxHandle_t sfx_rubbleBounce[3];
 
-	//sfxHandle_t sfx_bullet_fleshhit[MAX_IMPACT_SOUNDS];
-	sfxHandle_t sfx_bullet_metalhit[MAX_IMPACT_SOUNDS];
-	sfxHandle_t sfx_bullet_woodhit[MAX_IMPACT_SOUNDS];
-	sfxHandle_t sfx_bullet_glasshit[MAX_IMPACT_SOUNDS];
-	sfxHandle_t sfx_bullet_stonehit[MAX_IMPACT_SOUNDS];
-	sfxHandle_t sfx_bullet_waterhit[MAX_IMPACT_SOUNDS];
-
-	sfxHandle_t sfx_dynamiteexp;
-	sfxHandle_t sfx_dynamiteexpDist;
-
-	sfxHandle_t sfx_knifehit[5];
 	sfxHandle_t gibSound;
 	sfxHandle_t landSound[FOOTSTEP_TOTAL];
 
@@ -1632,8 +1603,6 @@ typedef struct
 	sfxHandle_t watrGaspSound;
 
 	sfxHandle_t underWaterSound;
-	sfxHandle_t fireSound;
-	sfxHandle_t waterSound;
 
 	sfxHandle_t countFight;
 	sfxHandle_t countPrepare;
