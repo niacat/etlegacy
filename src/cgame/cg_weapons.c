@@ -1342,12 +1342,12 @@ static qboolean CG_RW_ParseImpactMark(int handle, weaponInfo_t *weaponInfo)
 
 typedef struct hitImpact_s hitImpact_t;
 
-void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
-void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
-void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
-void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
-void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
-void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration);
+void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration);
+void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration);
+void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration);
+void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration);
+void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration);
+void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration);
 
 /**
  * @brief CG_RW_ParseClient
@@ -5353,9 +5353,9 @@ static sfxHandle_t CG_GetRandomImpactSound(int weapon, impactSurface_t surf)
 	return 0;
 }
 
-void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
+void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration)
 {
-	if (!hitFlesh)
+	if (missileEffect != PS_FX_FLESH)
 	{
 		*radius = 1 + rand() % 2;
 
@@ -5365,7 +5365,7 @@ void CG_MeleeImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, in
 	*markDuration = cg_markTime.integer;
 }
 
-void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
+void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration)
 {
 	*markDuration = -1;
 
@@ -5431,14 +5431,14 @@ void CG_BulletImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, i
 	}
 }
 
-void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
+void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration)
 {
 	trace_t trace;
 	vec3_t  tmpv;
 
 	*markDuration = cg_markTime.integer * 3;
 
-	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
+	if (missileEffect == PS_FX_WATER)
 	{
 		VectorCopy(origin, tmpv);
 		tmpv[2] += 10000;
@@ -5472,14 +5472,14 @@ void CG_SmallExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_
 	}
 }
 
-void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
+void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration)
 {
 	trace_t trace;
 	vec3_t  tmpv;
 
 	*markDuration = cg_markTime.integer * 3;
 
-	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
+	if (missileEffect == PS_FX_WATER)
 	{
 		VectorCopy(origin, tmpv);
 		tmpv[2] += 10000;
@@ -5529,14 +5529,14 @@ void CG_BigExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t 
 	}
 }
 
-void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
+void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration)
 {
 	trace_t trace;
 	vec3_t  tmpv;
 
 	*markDuration = cg_markTime.integer * 3;
 
-	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
+	if (missileEffect == PS_FX_WATER)
 	{
 		VectorCopy(origin, tmpv);
 		tmpv[2] += 10000;
@@ -5580,7 +5580,7 @@ void CG_MapMortarImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir
 	}
 }
 
-void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh, float *radius, int *markDuration)
+void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, float *radius, int *markDuration)
 {
 	trace_t trace;
 	vec3_t  tmpv;
@@ -5589,7 +5589,7 @@ void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, ve
 
 	// biggie dynamite explosions that mean it -- dynamite is biggest explode, so it gets extra crap thrown on
 	// check for water/dirt spurt
-	if (CG_PointContents(origin, 0) & CONTENTS_WATER)
+	if (missileEffect == PS_FX_WATER)
 	{
 		VectorCopy(origin, tmpv);
 		tmpv[2] += 10000;
@@ -5651,8 +5651,10 @@ void CG_DynamiteExplosionImpact(int weapon, int missileEffect, vec3_t origin, ve
  * @param[in] origin
  * @param[in] dir
  * @param[in] surfFlags
+ *
+ * @note modified to send missilehitwall surface parameters
  */
-void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags, qboolean hitFlesh)     // modified to send missilehitwall surface parameters
+void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir, int surfFlags)
 {
 	impactSurface_t impactSurfaceIndex = W_IMPACT_DEFAULT;
 	qhandle_t       mark;
@@ -5666,34 +5668,31 @@ void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir,
 		return;
 	}
 
-	if (surfFlags)
+	if (surfFlags & SURF_SKY)
 	{
-		if (surfFlags & SURF_SKY)
-		{
-			return;
-		}
+		return;
+	}
 
-		if (missileEffect == PS_FX_COMMON)
+	if (missileEffect == PS_FX_COMMON)
+	{
+		for (impactSurfaceIndex = 0; impactSurfaceIndex < W_MAX_IMPACTS; impactSurfaceIndex++)
 		{
-			for (impactSurfaceIndex = 0; impactSurfaceIndex < W_MAX_IMPACTS; impactSurfaceIndex++)
+			if (surfFlags & impactSurfaceTable[impactSurfaceIndex].surfaceType)
 			{
-				if (surfFlags & impactSurfaceTable[impactSurfaceIndex].surfaceType)
-				{
-					break;
-				}
-			}
-
-			if (impactSurfaceIndex == W_MAX_IMPACTS)
-			{
-				impactSurfaceIndex = W_IMPACT_DEFAULT;
+				break;
 			}
 		}
-		else if (missileEffect == PS_FX_WATER)
+
+		if (impactSurfaceIndex == W_MAX_IMPACTS)
 		{
-			impactSurfaceIndex = W_IMPACT_WATER;
+			impactSurfaceIndex = W_IMPACT_DEFAULT;
 		}
 	}
-	else if (hitFlesh)
+	else if (missileEffect == PS_FX_WATER)
+	{
+		impactSurfaceIndex = W_IMPACT_WATER;
+	}
+	else if (missileEffect == PS_FX_FLESH)
 	{
 		impactSurfaceIndex = W_IMPACT_FLESH;
 	}
@@ -5703,7 +5702,7 @@ void CG_MissileHitWall(int weapon, int missileEffect, vec3_t origin, vec3_t dir,
 	mark   = cg_weapons[weapon].impactMark[impactSurfaceIndex];
 	radius = cg_weapons[weapon].impactMarkRadius;
 
-	cg_weapons[weapon].impactFunc(weapon, missileEffect, origin, dir, surfFlags, hitFlesh, &radius, &markDuration);
+	cg_weapons[weapon].impactFunc(weapon, missileEffect, origin, dir, surfFlags, &radius, &markDuration);
 
 	// no sound found for given surface, force using default one if exist
 	if (!sfx)
@@ -5818,11 +5817,15 @@ void CG_MissileHitPlayer(centity_t *cent, int weapon, vec3_t origin, vec3_t dir,
 
 	if (GetWeaponTableData(weapon)->type & (WEAPON_TYPE_GRENADE | WEAPON_TYPE_PANZER))
 	{
-		CG_MissileHitWall(weapon, PS_FX_NONE, origin, dir, 0, qfalse);       // like the old one
+		int effect;
+
+		effect = (CG_PointContents(origin, 0) & CONTENTS_WATER) ? PS_FX_WATER : PS_FX_NONE;
+
+		CG_MissileHitWall(weapon, effect, origin, dir, 0);       // like the old one
 	}
 	else if (GetWeaponTableData(weapon)->type & WEAPON_TYPE_MELEE)
 	{
-		CG_MissileHitWall(weapon, PS_FX_NONE, origin, dir, 0, qtrue);        // this one makes the hitting fleshy sound. whee
+		CG_MissileHitWall(weapon, PS_FX_FLESH, origin, dir, 0);        // this one makes the hitting fleshy sound. whee
 	}
 }
 
@@ -6446,8 +6449,8 @@ void CG_Bullet(vec3_t end, int sourceEntityNum, qboolean flesh, int fleshEntityN
 				VectorSubtract(end, start, dist);
 				VectorMA(start, waterfraction, dist, end2);
 
-				CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_WATER, end2, dir, 0, qfalse);
-				CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_COMMON, end, trace.plane.normal, 0, qfalse);
+				CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_WATER, end2, dir, 0);
+				CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_COMMON, end, trace.plane.normal, 0);
 			}
 			else
 			{
@@ -6468,14 +6471,14 @@ void CG_Bullet(vec3_t end, int sourceEntityNum, qboolean flesh, int fleshEntityN
 					CG_Trace(&trace2, start, NULL, NULL, end, -1, MASK_WATER);
 					cg.bulletTrace = qfalse;
 
-					CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_WATER, trace2.endpos, trace2.plane.normal, trace2.surfaceFlags, qfalse);
+					CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_WATER, trace2.endpos, trace2.plane.normal, trace2.surfaceFlags);
 					return;
 				}
 
 				// better bullet marks
 				VectorSubtract(vec3_origin, dir, dir);
 
-				CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_COMMON, trace.endpos, dir, trace.surfaceFlags, qfalse);
+				CG_MissileHitWall(cg.snap->ps.weapon, PS_FX_COMMON, trace.endpos, dir, trace.surfaceFlags);
 			}
 		}
 	}

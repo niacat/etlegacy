@@ -1383,7 +1383,11 @@ void CG_Effect(centity_t *cent, vec3_t origin, vec3_t dir)
 
 	if (cent->currentState.eventParm & 1)      // fire
 	{
-		CG_MissileHitWall(WP_DYNAMITE, PS_FX_NONE, origin, dir, 0, qfalse);
+		int effect;
+
+		effect = (CG_PointContents(origin, 0) & CONTENTS_WATER) ? PS_FX_WATER : PS_FX_NONE;
+
+		CG_MissileHitWall(WP_DYNAMITE, effect, origin, dir, 0);
 		return;
 	}
 
@@ -2263,9 +2267,12 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 	case EV_MISSILE_MISS:
 	{
 		vec3_t dir;
+		int    effect;
+
+		effect = (CG_PointContents(position, 0) & CONTENTS_WATER) ? PS_FX_WATER : PS_FX_NONE;
 
 		ByteToDir(es->eventParm, dir);
-		CG_MissileHitWall(es->weapon, PS_FX_NONE, position, dir, 0, qfalse);
+		CG_MissileHitWall(es->weapon, effect, position, dir, 0);
 		if (CHECKBITWISE(GetWeaponTableData(es->weapon)->type, WEAPON_TYPE_MORTAR | WEAPON_TYPE_SET))
 		{
 			if (!es->legsAnim)
@@ -2282,15 +2289,18 @@ void CG_EntityEvent(centity_t *cent, vec3_t position)
 	case EV_MISSILE_MISS_LARGE:
 	{
 		vec3_t dir;
+		int    effect;
+
+		effect = (CG_PointContents(position, 0) & CONTENTS_WATER) ? PS_FX_WATER : PS_FX_NONE;
 
 		ByteToDir(es->eventParm, dir);
 		if (es->weapon == WP_ARTY || es->weapon == WP_AIRSTRIKE || es->weapon == WP_SMOKE_MARKER)
 		{
-			CG_MissileHitWall(es->weapon, PS_FX_NONE, position, dir, 0, qfalse);
+			CG_MissileHitWall(es->weapon, effect, position, dir, 0);
 		}
 		else
 		{
-			CG_MissileHitWall(VERYBIGEXPLOSION, PS_FX_NONE, position, dir, 0, qfalse);
+			CG_MissileHitWall(VERYBIGEXPLOSION, effect, position, dir, 0);
 		}
 	}
 	break;

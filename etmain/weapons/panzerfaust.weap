@@ -52,6 +52,7 @@ weaponDef
                 
                     default "sound/weapons/rocket/rocket_expl.wav"
                     far     "sound/weapons/rocket/rocket_expl_far.wav"
+                    water   "sound/weapons/grenade/gren_expl_water.wav"
                 }
                 impactMark {                    // each surface supports up to 1 marks shader. available surface : default, far, wood, metal, roof, gravel, glass, snow, water, flesh
                     default "gfx/damage/burn_med_mrk"
